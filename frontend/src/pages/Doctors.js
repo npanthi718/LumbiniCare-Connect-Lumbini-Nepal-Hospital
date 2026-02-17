@@ -44,7 +44,7 @@ import {
   EmojiEvents,
   AccessTime,
 } from "@mui/icons-material";
-import axios from "axios";
+import api from "../services/api";
 import { useNavigate, useLocation } from "react-router-dom";
 
 const Doctors = () => {
@@ -68,7 +68,7 @@ const Doctors = () => {
       try {
         setLoading(true);
         setError("");
-        const response = await axios.get("http://localhost:5000/api/doctors");
+        const response = await api.get("/doctors");
         console.log("Fetched doctors:", response.data);
         if (response.data && Array.isArray(response.data)) {
           const doctorsData = response.data.map((doctor) => ({
@@ -108,7 +108,7 @@ const Doctors = () => {
 
     const fetchDepartments = async () => {
       try {
-        const response = await axios.get("http://localhost:5000/api/departments");
+        const response = await api.get("/departments");
         if (response.data && Array.isArray(response.data)) {
           setDepartments(response.data);
         }

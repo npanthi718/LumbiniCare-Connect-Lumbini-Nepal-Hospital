@@ -49,16 +49,8 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../../services/api';
 import { format } from 'date-fns';
-
-// Create an axios instance with base URL and default headers
-const api = axios.create({
-  baseURL: 'http://localhost:5000/api',
-  headers: {
-    'Content-Type': 'application/json'
-  }
-});
 
 // Add request interceptor to add token and log requests
 api.interceptors.request.use(

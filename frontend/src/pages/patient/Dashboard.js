@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import axios from 'axios';
+import api from '../../services/api';
 import {
   Box,
   Container,
@@ -42,14 +42,6 @@ import {
 } from '@mui/icons-material';
 import { format, addDays } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
-
-// Create an axios instance with base URL and default headers
-const api = axios.create({
-  baseURL: 'http://localhost:5000',
-  headers: {
-    'Content-Type': 'application/json'
-  }
-});
 
 // Add request interceptor to add token
 api.interceptors.request.use(

@@ -31,7 +31,7 @@ import {
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import axios from "axios";
+import api from "../services/api";
 
 const features = [
   {
@@ -93,7 +93,7 @@ const Home = () => {
     const fetchData = async () => {
       if (!user) {
         try {
-          const response = await axios.get("http://localhost:5000/api/doctors");
+          const response = await api.get("/doctors");
           setDoctors(response.data);
         } catch (error) {
           console.error("Error fetching doctors:", error);

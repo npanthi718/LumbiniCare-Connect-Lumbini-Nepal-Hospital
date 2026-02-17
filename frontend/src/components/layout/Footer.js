@@ -8,6 +8,7 @@ import {
   IconButton,
   useTheme,
 } from '@mui/material';
+import { Link as RouterLink } from 'react-router-dom';
 import {
   Facebook,
   Twitter,
@@ -61,19 +62,19 @@ const Footer = () => {
               Quick Links
             </Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              <Link href="/doctors" color="inherit" underline="none">
+              <Link component={RouterLink} to="/doctors" color="inherit" underline="none">
                 Find a Doctor
               </Link>
-              <Link href="/departments" color="inherit" underline="none">
+              <Link component={RouterLink} to="/departments" color="inherit" underline="none">
                 Departments
               </Link>
-              <Link href="/appointments" color="inherit" underline="none">
+              <Link component={RouterLink} to="/appointments" color="inherit" underline="none">
                 Book Appointment
               </Link>
-              <Link href="/aboutus" color="inherit" underline="none">
+              <Link component={RouterLink} to="/aboutus" color="inherit" underline="none">
                 About Us
               </Link>
-              <Link href="/contact" color="inherit" underline="none">
+              <Link component={RouterLink} to="/contact" color="inherit" underline="none">
                 Contact Us
               </Link>
             </Box>

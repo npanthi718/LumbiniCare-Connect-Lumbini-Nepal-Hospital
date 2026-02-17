@@ -14,7 +14,7 @@ import {
   MenuItem,
 } from '@mui/material';
 import { Link, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../services/api';
 
 const Register = () => {
   const navigate = useNavigate();
@@ -49,7 +49,7 @@ const Register = () => {
     }
 
     try {
-      const response = await axios.post('http://localhost:5000/api/auth/register', formData);
+      const response = await api.post('/auth/register', formData);
       setSuccess('Registration successful! Please login.');
       setTimeout(() => {
         navigate('/login');
