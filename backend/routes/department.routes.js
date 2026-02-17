@@ -24,15 +24,11 @@ const validateDepartment = [
 // Get all departments (public)
 router.get('/', setCache(60), async (req, res) => {
     try {
-        console.log('Fetching all departments...');
         const departments = await Department.find({ status: 'active' })
             .select('name description specializations services facilities workingHours')
             .lean();
-
-        console.log(`Found ${departments.length} departments`);
         res.json(departments);
     } catch (error) {
-        console.error('Error fetching departments:', error);
         res.status(500).json({ 
             message: 'Error fetching departments',
             error: error.message 

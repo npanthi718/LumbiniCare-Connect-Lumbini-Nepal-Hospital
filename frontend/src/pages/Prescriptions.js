@@ -166,7 +166,6 @@ const Prescriptions = () => {
       const response = await api.get('/patients/prescriptions');
       setPrescriptions(response.data);
     } catch (error) {
-      console.error('Error fetching prescriptions:', error);
       setError('Failed to fetch prescriptions');
     } finally {
       setLoading(false);

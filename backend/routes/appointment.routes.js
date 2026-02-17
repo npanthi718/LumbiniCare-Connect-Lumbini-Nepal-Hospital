@@ -104,7 +104,6 @@ router.post('/', authenticateToken, async (req, res) => {
 
         res.status(201).json(appointment);
     } catch (error) {
-        console.error('Error creating appointment:', error);
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 });
@@ -169,7 +168,6 @@ router.get('/', authenticateToken, async (req, res) => {
 
         res.json(appointments);
     } catch (err) {
-        console.error('Error fetching appointments:', err);
         res.status(500).json({ message: 'Error fetching appointments', error: err.message });
     }
 });
@@ -190,7 +188,6 @@ router.get('/all', authenticateToken, isAdmin, async (req, res) => {
         
         res.json(appointments);
     } catch (error) {
-        console.error('Error fetching all appointments:', error);
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 });
@@ -254,7 +251,6 @@ router.patch('/:id/complete', authenticateToken, async (req, res) => {
 
         res.json({ message: 'Appointment marked as completed', appointment });
     } catch (error) {
-        console.error('Error completing appointment:', error);
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 });

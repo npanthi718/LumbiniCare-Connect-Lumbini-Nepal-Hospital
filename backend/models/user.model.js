@@ -66,14 +66,11 @@ userSchema.pre("save", async function (next) {
       return next();
     }
 
-    console.log("Hashing password for user:", this.email);
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(this.password, salt);
     this.password = hashedPassword;
-    console.log("Password hashed successfully for:", this.email);
     next();
   } catch (error) {
-    console.error("Error hashing password:", error);
     next(error);
   }
 });
@@ -82,21 +79,16 @@ userSchema.pre("save", async function (next) {
 userSchema.methods.comparePassword = async function (candidatePassword) {
   try {
     if (!this.password) {
-      console.error("No password hash found for user:", this.email);
       return false;
     }
 
     if (!candidatePassword) {
-      console.error("No candidate password provided for user:", this.email);
       return false;
     }
 
-    console.log("Comparing password for user:", this.email);
     const isMatch = await bcrypt.compare(candidatePassword, this.password);
-    console.log("Password comparison result for", this.email, ":", isMatch);
     return isMatch;
   } catch (error) {
-    console.error("Password comparison error for user", this.email, ":", error);
     return false;
   }
 };

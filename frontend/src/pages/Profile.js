@@ -16,6 +16,7 @@ import {
   Select,
 } from '@mui/material';
 import { useAuth } from '../context/AuthContext';
+import api from '../services/api';
 
 function Profile() {
   const { user, updateProfile, updatePassword } = useAuth();
@@ -43,6 +44,19 @@ function Profile() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+  const [adminReset, setAdminReset] = useState({ email: '', newPassword: '' });
+  const [doctorForm, setDoctorForm] = useState({
+    name: '',
+    email: '',
+    password: '',
+    department: '',
+    specialization: '',
+    experience: 0,
+    license: '',
+    consultationFee: 0,
+    education: [{ degree: '', institution: '', year: new Date().getFullYear(), honors: '' }],
+  });
+  const [departments, setDepartments] = useState([]);
 
   useEffect(() => {
     if (user) {
@@ -131,8 +145,101 @@ function Profile() {
       await updateProfile(updateData);
       setSuccess('Profile updated successfully');
     } catch (err) {
-      console.error('Profile update error:', err);
       setError(err.message || 'Failed to update profile');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAdminResetSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+    setLoading(true);
+    try {
+      if (!adminReset.email.trim() || !adminReset.newPassword.trim()) {
+        throw new Error('Email and new password are required');
+      }
+      const users = await api.get('/users');
+      const target = users.data.find(u => u.email?.toLowerCase() === adminReset.email.toLowerCase());
+      if (!target?._id) {
+        throw new Error('User not found for the provided email');
+      }
+      await api.patch(`/users/${target._id}/password`, { newPassword: adminReset.newPassword });
+      setSuccess('Password reset successfully');
+      setAdminReset({ email: '', newPassword: '' });
+    } catch (err) {
+      setError(err.response?.data?.message || err.message || 'Failed to reset password');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user?.role === 'admin') {
+      api.get('/admin/departments')
+        .then(res => setDepartments(res.data || []))
+        .catch(() => {});
+    }
+  }, [user?.role]);
+
+  const handleDoctorFormChange = (e) => {
+    const { name, value } = e.target;
+    setDoctorForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleEducationChange = (index, field, value) => {
+    setDoctorForm(prev => {
+      const education = [...prev.education];
+      education[index] = { ...education[index], [field]: value };
+      return { ...prev, education };
+    });
+  };
+
+  const addEducationRow = () => {
+    setDoctorForm(prev => ({
+      ...prev,
+      education: [...prev.education, { degree: '', institution: '', year: new Date().getFullYear(), honors: '' }]
+    }));
+  };
+
+  const handleCreateDoctor = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+    setLoading(true);
+    try {
+      const payload = {
+        name: doctorForm.name.trim(),
+        email: doctorForm.email.trim(),
+        password: doctorForm.password,
+        department: doctorForm.department,
+        specialization: doctorForm.specialization.trim(),
+        experience: Number(doctorForm.experience),
+        license: doctorForm.license.trim(),
+        consultationFee: Number(doctorForm.consultationFee),
+        education: doctorForm.education.map(ed => ({
+          degree: ed.degree.trim(),
+          institution: ed.institution.trim(),
+          year: Number(ed.year),
+          honors: ed.honors?.trim() || ''
+        }))
+      };
+      await api.post('/doctors', payload);
+      setSuccess('Doctor created successfully');
+      setDoctorForm({
+        name: '',
+        email: '',
+        password: '',
+        department: '',
+        specialization: '',
+        experience: 0,
+        license: '',
+        consultationFee: 0,
+        education: [{ degree: '', institution: '', year: new Date().getFullYear(), honors: '' }],
+      });
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to create doctor');
     } finally {
       setLoading(false);
     }
@@ -171,7 +278,6 @@ function Profile() {
         confirmPassword: '',
       });
     } catch (err) {
-      console.error('Password update error:', err);
       setError(err.response?.data?.message || 'Failed to update password');
     } finally {
       setLoading(false);
@@ -190,6 +296,8 @@ function Profile() {
         <Tabs value={activeTab} onChange={handleTabChange}>
           <Tab label="PROFILE INFORMATION" />
           <Tab label="CHANGE PASSWORD" />
+          {user?.role === 'admin' && <Tab label="ADMIN: RESET PASSWORD" />}
+          {user?.role === 'admin' && <Tab label="ADMIN: ADD DOCTOR" />}
         </Tabs>
       </Box>
 
@@ -396,6 +504,109 @@ function Profile() {
                 sx={{ mt: 2 }}
               >
                 {loading ? 'Updating...' : 'Update Password'}
+              </Button>
+            </Grid>
+          </Grid>
+        </Box>
+      )}
+
+      {user?.role === 'admin' && activeTab === 2 && (
+        <Box component="form" onSubmit={handleAdminResetSubmit}>
+          <Grid container spacing={3} sx={{ mt: 2 }}>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                required
+                fullWidth
+                label="User Email"
+                name="email"
+                value={adminReset.email}
+                onChange={(e) => setAdminReset(prev => ({ ...prev, email: e.target.value }))}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                required
+                fullWidth
+                label="New Password"
+                name="newPassword"
+                type="password"
+                value={adminReset.newPassword}
+                onChange={(e) => setAdminReset(prev => ({ ...prev, newPassword: e.target.value }))}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <Button type="submit" variant="contained" disabled={loading}>
+                {loading ? 'Updating...' : 'Reset Password'}
+              </Button>
+            </Grid>
+          </Grid>
+        </Box>
+      )}
+
+      {user?.role === 'admin' && activeTab === 3 && (
+        <Box component="form" onSubmit={handleCreateDoctor}>
+          <Grid container spacing={3} sx={{ mt: 2 }}>
+            <Grid item xs={12} sm={6}>
+              <TextField label="Name" name="name" value={doctorForm.name} onChange={handleDoctorFormChange} fullWidth required />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField label="Email" name="email" value={doctorForm.email} onChange={handleDoctorFormChange} fullWidth required />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField label="Password" name="password" type="password" value={doctorForm.password} onChange={handleDoctorFormChange} fullWidth required />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth required>
+                <InputLabel>Department</InputLabel>
+                <Select
+                  label="Department"
+                  name="department"
+                  value={doctorForm.department}
+                  onChange={handleDoctorFormChange}
+                >
+                  {departments.map(dep => (
+                    <MenuItem key={dep._id} value={dep._id}>{dep.name}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField label="Specialization" name="specialization" value={doctorForm.specialization} onChange={handleDoctorFormChange} fullWidth required />
+            </Grid>
+            <Grid item xs={12} sm={3}>
+              <TextField label="Experience (years)" name="experience" type="number" value={doctorForm.experience} onChange={handleDoctorFormChange} fullWidth required />
+            </Grid>
+            <Grid item xs={12} sm={3}>
+              <TextField label="Consultation Fee" name="consultationFee" type="number" value={doctorForm.consultationFee} onChange={handleDoctorFormChange} fullWidth required />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField label="License" name="license" value={doctorForm.license} onChange={handleDoctorFormChange} fullWidth required />
+            </Grid>
+            <Grid item xs={12}>
+              <Typography variant="subtitle1" sx={{ mt: 2 }}>Education</Typography>
+            </Grid>
+            {doctorForm.education.map((ed, idx) => (
+              <React.Fragment key={idx}>
+                <Grid item xs={12} sm={3}>
+                  <TextField label="Degree" value={ed.degree} onChange={(e) => handleEducationChange(idx, 'degree', e.target.value)} fullWidth required />
+                </Grid>
+                <Grid item xs={12} sm={4}>
+                  <TextField label="Institution" value={ed.institution} onChange={(e) => handleEducationChange(idx, 'institution', e.target.value)} fullWidth required />
+                </Grid>
+                <Grid item xs={12} sm={2}>
+                  <TextField label="Year" type="number" value={ed.year} onChange={(e) => handleEducationChange(idx, 'year', e.target.value)} fullWidth required />
+                </Grid>
+                <Grid item xs={12} sm={3}>
+                  <TextField label="Honors" value={ed.honors} onChange={(e) => handleEducationChange(idx, 'honors', e.target.value)} fullWidth />
+                </Grid>
+              </React.Fragment>
+            ))}
+            <Grid item xs={12}>
+              <Button onClick={addEducationRow}>Add Education</Button>
+            </Grid>
+            <Grid item xs={12}>
+              <Button type="submit" variant="contained" disabled={loading}>
+                {loading ? 'Saving...' : 'Create Doctor'}
               </Button>
             </Grid>
           </Grid>

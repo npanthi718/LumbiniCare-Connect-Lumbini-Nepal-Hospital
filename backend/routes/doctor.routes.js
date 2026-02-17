@@ -33,7 +33,6 @@ const validateDoctorUpdate = [
 // Get all doctors
 router.get("/", async (req, res) => {
   try {
-    console.log("Fetching all doctors...");
     const doctors = await Doctor.find()
       .populate({
         path: "userId",
@@ -45,13 +44,69 @@ router.get("/", async (req, res) => {
       })
       .lean();
 
-    console.log(`Found ${doctors.length} doctors`);
     res.json(doctors);
   } catch (error) {
-    console.error("Error fetching doctors:", error);
     res.status(500).json({ message: "Error fetching doctors", error: error.message });
   }
 });
+
+// Create doctor (admin only)
+router.post(
+  "/",
+  authenticateToken,
+  isAdmin,
+  [
+    body("name").trim().notEmpty().withMessage("Name is required"),
+    body("email").isEmail().withMessage("Valid email is required"),
+    body("password").isLength({ min: 6 }).withMessage("Password must be at least 6 characters"),
+    body("department").isMongoId().withMessage("Valid department ID is required"),
+    body("specialization").trim().notEmpty().withMessage("Specialization is required"),
+    body("experience").isInt({ min: 0 }).withMessage("Experience must be a positive number"),
+    body("license").trim().notEmpty().withMessage("License is required"),
+    body("consultationFee").isFloat({ min: 0 }).withMessage("Consultation fee must be a positive number"),
+    body("education").isArray({ min: 1 }).withMessage("At least one education entry is required")
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const { name, email, password, department, specialization, experience, education, license, consultationFee } = req.body;
+
+      const existingUser = await User.findOne({ email });
+      if (existingUser) {
+        return res.status(400).json({ message: "Email already exists" });
+      }
+
+      const user = new User({ name, email, password, role: "doctor" });
+      await user.save();
+
+      const doctor = new Doctor({
+        userId: user._id,
+        department,
+        specialization,
+        experience,
+        education,
+        license,
+        consultationFee,
+        isApproved: true,
+        status: "active"
+      });
+      await doctor.save();
+
+      const createdDoctor = await Doctor.findById(doctor._id)
+        .populate({ path: "userId", select: "name email" })
+        .populate({ path: "department", select: "name" })
+        .lean();
+
+      res.status(201).json(createdDoctor);
+    } catch (error) {
+      res.status(500).json({ message: "Server error", error: error.message });
+    }
+  }
+);
 
 // Get doctor's appointments
 router.get("/appointments", authenticateToken, async (req, res) => {
@@ -60,8 +115,6 @@ router.get("/appointments", authenticateToken, async (req, res) => {
     if (req.user.role !== 'doctor') {
       return res.status(403).json({ message: 'Access denied: Doctor only' });
     }
-
-    console.log("Fetching appointments for doctor:", req.user._id);
 
     const doctor = await Doctor.findOne({ userId: req.user._id });
     if (!doctor) {
@@ -83,12 +136,8 @@ router.get("/appointments", authenticateToken, async (req, res) => {
       })
       .sort({ date: -1 });
 
-    console.log(
-      `Found ${appointments.length} appointments for doctor ${doctor._id}`
-    );
     res.json(appointments);
   } catch (error) {
-    console.error("Error fetching doctor appointments:", error);
     res.status(500).json({
       message: "Error fetching appointments",
       error: error.message,
@@ -215,7 +264,6 @@ router.get("/stats/overview", authenticateToken, async (req, res) => {
 // Get doctor by ID
 router.get("/:id", async (req, res) => {
   try {
-    console.log(`Fetching doctor with ID: ${req.params.id}`);
     const doctor = await Doctor.findById(req.params.id)
       .populate({
         path: "userId",
@@ -228,14 +276,11 @@ router.get("/:id", async (req, res) => {
       .lean();
 
     if (!doctor) {
-      console.log("Doctor not found");
       return res.status(404).json({ message: "Doctor not found" });
     }
 
-    console.log("Doctor found:", doctor.userId?.name);
     res.json(doctor);
   } catch (error) {
-    console.error("Error fetching doctor:", error);
     res.status(500).json({ message: "Error fetching doctor", error: error.message });
   }
 });

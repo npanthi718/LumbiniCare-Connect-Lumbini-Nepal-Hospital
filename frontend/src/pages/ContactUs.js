@@ -44,10 +44,7 @@ const ContactUs = () => {
     try {
       setLoading(true);
       setError(null);
-      
-      console.log('Sending contact form data:', formData); // Debug log
-      const response = await api.post('/contact', formData);
-      console.log('Contact form response:', response.data); // Debug log
+      await api.post('/contact', formData);
       
       setSuccess('Message sent successfully! We will get back to you soon.');
       setFormData({
@@ -57,7 +54,6 @@ const ContactUs = () => {
         message: ''
       });
     } catch (error) {
-      console.error('Error sending message:', error);
       setError(error.response?.data?.message || 'Failed to send message. Please try again.');
     } finally {
       setLoading(false);

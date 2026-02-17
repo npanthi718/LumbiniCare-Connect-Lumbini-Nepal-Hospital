@@ -28,7 +28,6 @@ import {
   CalendarToday,
   LocalHospital,
   People,
-  Settings,
   ExitToApp,
   Info,
   ContactSupport,

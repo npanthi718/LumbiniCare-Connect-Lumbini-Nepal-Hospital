@@ -29,75 +29,36 @@ import {
   CircularProgress,
 } from '@mui/material';
 import {
-  People as PeopleIcon,
-  Event as EventIcon,
-  AccessTime as TimeIcon,
   Close as CloseIcon,
   CheckCircle as CheckCircleIcon,
-  Cancel as CancelIcon,
   CalendarToday,
   AccessTime,
   Person,
   LocalHospital,
-  Edit,
   Assignment,
-  Search,
   Delete as DeleteIcon,
-  EventNote,
-  Schedule,
-  Refresh,
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import { format } from 'date-fns';
 
-// Add request interceptor to add token and log requests
+// Add request interceptor to add token
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('Request:', {
-        url: `${config.baseURL}${config.url}`,
-        method: config.method,
-        headers: config.headers,
-        data: config.data
-      });
-    }
     return config;
   },
-  (error) => {
-    if (process.env.NODE_ENV !== 'production') {
-      console.error('Request error:', error);
-    }
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
 // Add response interceptor for better error handling
 api.interceptors.response.use(
-  (response) => {
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('Response:', {
-        url: response.config.url,
-        status: response.status,
-        data: response.data
-      });
-    }
-    return response;
-  },
+  (response) => response,
   (error) => {
-    if (process.env.NODE_ENV !== 'production') {
-      console.error('API Error:', {
-        url: error.config?.url,
-        status: error.response?.status,
-        message: error.response?.data?.message || error.message,
-        data: error.response?.data
-      });
-    }
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
       window.location.href = '/login';
@@ -124,7 +85,6 @@ const Dashboard = () => {
     cancelled: [],
     all: []
   });
-  const [prescriptions, setPrescriptions] = useState([]);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [openPrescriptionDialog, setOpenPrescriptionDialog] = useState(false);
   const [prescriptionNote, setPrescriptionNote] = useState('');
@@ -151,7 +111,6 @@ const Dashboard = () => {
     const resetTimer = () => {
       clearTimeout(inactivityTimer);
       inactivityTimer = setTimeout(() => {
-        console.log('Session timeout - logging out');
         logout();
         navigate('/login');
       }, SESSION_TIMEOUT);
@@ -219,15 +178,6 @@ const Dashboard = () => {
       // Update appointments state
       setAppointments(processedAppointments);
 
-      // Try to get prescriptions
-      try {
-        const prescriptionsRes = await api.get('/prescriptions/doctor');
-        setPrescriptions(prescriptionsRes.data || []);
-      } catch (prescError) {
-        console.error('Error fetching prescriptions:', prescError);
-        setPrescriptions([]);
-      }
-
       // Update stats
       setStats({
         totalAppointments: allAppointments.length,
@@ -255,7 +205,6 @@ const Dashboard = () => {
         cancelled: [],
         all: []
       });
-      setPrescriptions([]);
       setStats({
         totalAppointments: 0,
         todayAppointments: 0,
@@ -276,12 +225,6 @@ const Dashboard = () => {
 
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
-  };
-
-  const handleOpenPrescription = (appointment) => {
-    setSelectedAppointment(appointment);
-    setPrescriptionNote('');
-    setOpenPrescriptionDialog(true);
   };
 
   const handleClosePrescription = () => {
@@ -311,41 +254,19 @@ const Dashboard = () => {
         notes: prescriptionNote
       };
 
-      console.log('Attempting to submit prescription with data:', prescriptionData);
-
       // Add the prescription using the configured api instance
-      const prescriptionResponse = await api.post('/prescriptions', prescriptionData);
-      console.log('Prescription created successfully:', prescriptionResponse.data);
+      await api.post('/prescriptions', prescriptionData);
 
       // Then complete the appointment using the configured api instance
       await api.patch(`/doctors/appointments/${selectedAppointment._id}/complete`);
-      console.log('Appointment marked as completed');
 
       setSuccess('Prescription added and appointment completed successfully');
       setOpenPrescriptionDialog(false);
       setPrescriptionNote('');
       await fetchDashboardData(); // Refresh the dashboard data
     } catch (error) {
-      console.error('Error submitting prescription:', error.response || error);
       const errorMessage = error.response?.data?.message || error.message || 'Failed to submit prescription';
       setError(`Error: ${errorMessage}. Please try again.`);
-    }
-  };
-
-  const handleUpdateStatus = async (appointmentId, newStatus, prescription = null) => {
-    try {
-      setError(null);
-      // Fix: Use the correct status update endpoint
-      const response = await api.patch(`/doctors/appointments/${appointmentId}/status`, {
-        status: newStatus,
-        prescription
-      });
-      
-      setSuccess(`Appointment ${newStatus} successfully`);
-      fetchDashboardData();
-    } catch (error) {
-      console.error('Error updating appointment status:', error);
-      setError(error.response?.data?.message || 'Failed to update appointment status');
     }
   };
 
@@ -364,34 +285,6 @@ const Dashboard = () => {
     }
   };
 
-  const categorizeAppointments = (appointments) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    return {
-      todayAppointments: appointments.filter(appointment => {
-        const appointmentDate = new Date(appointment.date);
-        appointmentDate.setHours(0, 0, 0, 0);
-        return appointmentDate.getTime() === today.getTime() && 
-               (appointment.status === 'confirmed' || appointment.status === 'pending');
-      }),
-      upcomingAppointments: appointments.filter(appointment => {
-        const appointmentDate = new Date(appointment.date);
-        appointmentDate.setHours(0, 0, 0, 0);
-        return appointmentDate.getTime() > today.getTime() && 
-               appointment.status !== 'cancelled' && 
-               appointment.status !== 'completed';
-      }),
-      pastAppointments: appointments.filter(appointment => {
-        const appointmentDate = new Date(appointment.date);
-        appointmentDate.setHours(0, 0, 0, 0);
-        return appointmentDate.getTime() < today.getTime() || 
-               appointment.status === 'completed' || 
-               appointment.status === 'cancelled';
-      })
-    };
-  };
-
   const handleViewPrescription = async (appointment) => {
     try {
       setError(null);
@@ -402,8 +295,6 @@ const Dashboard = () => {
         return;
       }
 
-      console.log('Fetching prescription for appointment:', appointment._id);
-      
       // First get all prescriptions for this doctor
       const response = await api.get('/prescriptions/doctor');
       
@@ -421,7 +312,6 @@ const Dashboard = () => {
       
       setViewPrescriptionDialog(true);
     } catch (error) {
-      console.error('Error fetching prescription:', error);
       const errorMessage = error.response?.data?.message || error.message;
       setError(`Failed to fetch prescription: ${errorMessage}`);
     }
@@ -435,13 +325,8 @@ const Dashboard = () => {
         prescription: withPrescription ? prescriptionData : null
       };
 
-      console.log('Completing appointment with data:', {
-        appointmentId: appointment._id,
-        data
-      });
-
       // Fix: Use the correct complete appointment endpoint
-      const response = await api.patch(`/doctors/appointments/${appointment._id}/complete`, data);
+      await api.patch(`/doctors/appointments/${appointment._id}/complete`, data);
       
       setSuccess('Appointment completed successfully');
       if (withPrescription) {
@@ -456,7 +341,6 @@ const Dashboard = () => {
       }
       fetchDashboardData();
     } catch (error) {
-      console.error('Error completing appointment:', error);
       const errorMessage = error.response?.data?.message || error.message || 'Failed to complete appointment';
       setError(`Failed to complete appointment: ${errorMessage}`);
     }
@@ -467,19 +351,7 @@ const Dashboard = () => {
     setPrescriptionDialogOpen(true);
   };
 
-  const formatPrescriptionData = () => {
-    return {
-      ...prescriptionData,
-      medicines: prescriptionData.medicines.map(med => ({
-        name: med.name.trim(),
-        dosage: med.dosage.trim()
-      })).filter(med => med.name && med.dosage),
-      tests: prescriptionData.tests.filter(test => test.trim()),
-      diagnosis: prescriptionData.diagnosis.trim(),
-      notes: prescriptionData.notes.trim(),
-      followUpDate: prescriptionData.followUpDate || null
-    };
-  };
+  // Removed unused formatPrescriptionData to satisfy lint
 
   const handlePrescriptionSubmit = () => {
     if (!prescriptionData.diagnosis.trim()) {
@@ -487,7 +359,6 @@ const Dashboard = () => {
       return;
     }
 
-    const formattedData = formatPrescriptionData();
     handleCompleteAppointment(selectedAppointment, true);
   };
 

@@ -77,7 +77,6 @@ router.post('/', authenticateToken, validatePrescription, async (req, res) => {
 
         res.status(201).json(prescription);
     } catch (error) {
-        console.error('Error creating prescription:', error);
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 });
@@ -101,7 +100,6 @@ router.get('/patient', authenticateToken, async (req, res) => {
             .sort({ createdAt: -1 });
         res.json(prescriptions);
     } catch (error) {
-        console.error('Error fetching patient prescriptions:', error);
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 });
@@ -125,7 +123,6 @@ router.get('/doctor', authenticateToken, async (req, res) => {
             .sort({ createdAt: -1 });
         res.json(prescriptions);
     } catch (error) {
-        console.error('Error fetching doctor prescriptions:', error);
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 });
@@ -161,7 +158,6 @@ router.get('/:id', authenticateToken, async (req, res) => {
 
         res.json(prescription);
     } catch (error) {
-        console.error('Error fetching prescription:', error);
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 });
@@ -208,7 +204,6 @@ router.patch('/:id/status', authenticateToken, async (req, res) => {
 
         res.json({ message: 'Prescription status updated successfully', prescription });
     } catch (error) {
-        console.error('Error updating prescription status:', error);
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 });
@@ -228,7 +223,6 @@ router.get('/stats/overview', authenticateToken, isAdmin, async (req, res) => {
             cancelledPrescriptions: stats[2]
         });
     } catch (error) {
-        console.error('Error fetching prescription statistics:', error);
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 });
@@ -249,7 +243,6 @@ router.get('/patient/:patientId', authenticateToken, isAdmin, async (req, res) =
 
         res.json(prescriptions);
     } catch (error) {
-        console.error('Error fetching patient prescriptions:', error);
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 });

@@ -32,6 +32,7 @@ import {
   CircularProgress,
   DialogContentText,
 } from "@mui/material";
+import Autocomplete from "@mui/material/Autocomplete";
 import {
   LocalHospital as HospitalIcon,
   Event as EventIcon,
@@ -44,9 +45,9 @@ import {
   Visibility as VisibilityIcon,
   History as HistoryIcon,
   Email as EmailIcon,
-  CheckCircle as CheckCircle,
-  Cancel as Cancel,
-  Visibility as Visibility,
+  CheckCircle,
+  Cancel,
+  Visibility,
   DoneAll,
   Reply,
   Delete,
@@ -95,12 +96,6 @@ const AdminDashboard = () => {
     cancelledAppointments: 0,
     unreadMessages: 0,
   });
-  const [appointmentStats, setAppointmentStats] = useState({
-    today: 0,
-    upcoming: 0,
-    completed: 0,
-    cancelled: 0
-  });
   const [doctors, setDoctors] = useState([]);
   const [patients, setPatients] = useState([]);
   const [appointments, setAppointments] = useState({
@@ -109,14 +104,12 @@ const AdminDashboard = () => {
     upcoming: [],
     past: []
   });
-  const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [viewAppointmentDialog, setViewAppointmentDialog] = useState(false);
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
-  const [selectedPatientHistory, setSelectedPatientHistory] = useState(null);
   const [prescriptionDialogOpen, setPrescriptionDialogOpen] = useState(false);
   const [selectedPrescription, setSelectedPrescription] = useState(null);
   const [viewPatientDialog, setViewPatientDialog] = useState(false);
@@ -128,10 +121,266 @@ const AdminDashboard = () => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [selectedMessage, setSelectedMessage] = useState(null);
   const [viewMessageDialog, setViewMessageDialog] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetPassword, setResetPassword] = useState('');
+  const [deptList, setDeptList] = useState([]);
+  const [usersList, setUsersList] = useState([]);
+  const [doctorForm, setDoctorForm] = useState({
+    name: '',
+    email: '',
+    password: '',
+    department: '',
+    specialization: '',
+    experience: '',
+    license: '',
+    consultationFee: '',
+    education: [{ degree: '', institute: '', year: '' }],
+  });
 
   const calculateUnreadCount = (messages) => {
     return messages.filter(message => message.status === 'unread').length;
   };
+
+  const renderAdminActions = () => (
+    <Grid container spacing={3}>
+      <Grid item xs={12} md={6}>
+        <Card>
+          <CardContent>
+            <Typography variant="h6" sx={{ mb: 2 }}>Reset User/Doctor Password</Typography>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Autocomplete
+                options={usersList.map(u => u.email).filter(Boolean)}
+                value={resetEmail}
+                onChange={(e, val) => setResetEmail(val || '')}
+                onInputChange={(e, val) => setResetEmail(val || '')}
+                renderInput={(params) => (
+                  <TextField {...params} label="Email" fullWidth />
+                )}
+                freeSolo
+              />
+              <TextField
+                label="New Password"
+                type="password"
+                value={resetPassword}
+                onChange={(e) => setResetPassword(e.target.value)}
+                fullWidth
+              />
+              <Button
+                variant="contained"
+                onClick={async () => {
+                  try {
+                    setError(null);
+                    const res = await api.get('/users');
+                    const u = (res.data || []).find(x => x.email?.toLowerCase() === resetEmail.toLowerCase());
+                    if (!u) {
+                      setError('User not found with that email');
+                      return;
+                    }
+                    await api.patch(`/users/${u._id}/password`, { newPassword: resetPassword });
+                    setSuccess('Password reset successfully');
+                    setResetEmail('');
+                    setResetPassword('');
+                  } catch (err) {
+                    setError(err.response?.data?.message || 'Failed to reset password');
+                  }
+                }}
+              >
+                Reset Password
+              </Button>
+            </Box>
+          </CardContent>
+        </Card>
+      </Grid>
+      <Grid item xs={12} md={6}>
+        <Card>
+          <CardContent>
+            <Typography variant="h6" sx={{ mb: 2 }}>Add Doctor</Typography>
+            <Grid container spacing={2}>
+              <Grid item xs={12}>
+                <TextField
+                  label="Name"
+                  value={doctorForm.name}
+                  onChange={(e) => setDoctorForm({ ...doctorForm, name: e.target.value })}
+                  fullWidth
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  label="Email"
+                  value={doctorForm.email}
+                  onChange={(e) => setDoctorForm({ ...doctorForm, email: e.target.value })}
+                  fullWidth
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  label="Password"
+                  type="password"
+                  value={doctorForm.password}
+                  onChange={(e) => setDoctorForm({ ...doctorForm, password: e.target.value })}
+                  fullWidth
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <FormControl fullWidth>
+                  <Select
+                    value={doctorForm.department}
+                    onChange={(e) => setDoctorForm({ ...doctorForm, department: e.target.value })}
+                    displayEmpty
+                  >
+                    <MenuItem value=""><em>Select Department</em></MenuItem>
+                    {deptList.map((d) => (
+                      <MenuItem key={d._id} value={d._id}>{d.name}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  label="Specialization"
+                  value={doctorForm.specialization}
+                  onChange={(e) => setDoctorForm({ ...doctorForm, specialization: e.target.value })}
+                  fullWidth
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  label="Experience (years)"
+                  type="number"
+                  value={doctorForm.experience}
+                  onChange={(e) => setDoctorForm({ ...doctorForm, experience: e.target.value })}
+                  fullWidth
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  label="Consultation Fee"
+                  type="number"
+                  value={doctorForm.consultationFee}
+                  onChange={(e) => setDoctorForm({ ...doctorForm, consultationFee: e.target.value })}
+                  fullWidth
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  label="License"
+                  value={doctorForm.license}
+                  onChange={(e) => setDoctorForm({ ...doctorForm, license: e.target.value })}
+                  fullWidth
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <Typography variant="subtitle2">Education</Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {doctorForm.education.map((edu, idx) => (
+                    <Grid container spacing={1} key={idx}>
+                      <Grid item xs={12} md={4}>
+                        <TextField
+                          label="Degree"
+                          value={edu.degree}
+                          onChange={(e) => {
+                            const education = [...doctorForm.education];
+                            education[idx] = { ...education[idx], degree: e.target.value };
+                            setDoctorForm({ ...doctorForm, education });
+                          }}
+                          fullWidth
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={4}>
+                        <TextField
+                          label="Institute"
+                          value={edu.institute}
+                          onChange={(e) => {
+                            const education = [...doctorForm.education];
+                            education[idx] = { ...education[idx], institute: e.target.value };
+                            setDoctorForm({ ...doctorForm, education });
+                          }}
+                          fullWidth
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={3}>
+                        <TextField
+                          label="Year"
+                          value={edu.year}
+                          onChange={(e) => {
+                            const education = [...doctorForm.education];
+                            education[idx] = { ...education[idx], year: e.target.value };
+                            setDoctorForm({ ...doctorForm, education });
+                          }}
+                          fullWidth
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={1}>
+                        <Button
+                          color="error"
+                          onClick={() => {
+                            const education = doctorForm.education.filter((_, i) => i !== idx);
+                            setDoctorForm({ ...doctorForm, education: education.length ? education : [{ degree: '', institute: '', year: '' }] });
+                          }}
+                        >
+                          Remove
+                        </Button>
+                      </Grid>
+                    </Grid>
+                  ))}
+                  <Button
+                    variant="outlined"
+                    onClick={() => {
+                      setDoctorForm({
+                        ...doctorForm,
+                        education: [...doctorForm.education, { degree: '', institute: '', year: '' }]
+                      });
+                    }}
+                  >
+                    Add Education
+                  </Button>
+                </Box>
+              </Grid>
+              <Grid item xs={12}>
+                <Button
+                  variant="contained"
+                  onClick={async () => {
+                    try {
+                      setError(null);
+                      const payload = {
+                        name: doctorForm.name,
+                        email: doctorForm.email,
+                        password: doctorForm.password,
+                        department: doctorForm.department,
+                        specialization: doctorForm.specialization,
+                        experience: Number(doctorForm.experience || 0),
+                        license: doctorForm.license,
+                        consultationFee: Number(doctorForm.consultationFee || 0),
+                        education: doctorForm.education
+                      };
+                      await api.post('/doctors', payload);
+                      setSuccess('Doctor created successfully');
+                      setDoctorForm({
+                        name: '',
+                        email: '',
+                        password: '',
+                        department: '',
+                        specialization: '',
+                        experience: '',
+                        license: '',
+                        consultationFee: '',
+                        education: [{ degree: '', institute: '', year: '' }],
+                      });
+                      await fetchDashboardData();
+                    } catch (err) {
+                      setError(err.response?.data?.message || 'Failed to create doctor');
+                    }
+                  }}
+                >
+                  Create Doctor
+                </Button>
+              </Grid>
+            </Grid>
+          </CardContent>
+        </Card>
+      </Grid>
+    </Grid>
+  );
 
   const fetchDashboardData = useCallback(async () => {
     try {
@@ -147,11 +396,10 @@ const AdminDashboard = () => {
       api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
       // Make API calls in parallel
-      const [appointmentsRes, doctorsRes, patientsRes, departmentsRes, messagesRes] = await Promise.all([
+      const [appointmentsRes, doctorsRes, patientsRes, messagesRes] = await Promise.all([
         api.get('/admin/appointments'),
         api.get('/admin/doctors'),
         api.get('/admin/patients'),
-        api.get('/admin/departments'),
         api.get('/contact')
       ]);
 
@@ -165,7 +413,6 @@ const AdminDashboard = () => {
       });
       setDoctors(doctorsRes.data);
       setPatients(patientsRes.data);
-      setDepartments(departmentsRes.data);
       setMessages(messagesRes.data);
       setUnreadCount(calculateUnreadCount(messagesRes.data));
 
@@ -177,34 +424,10 @@ const AdminDashboard = () => {
         completedAppointments: appointmentsRes.data.filter(apt => apt.status === 'completed').length,
         pendingAppointments: appointmentsRes.data.filter(apt => apt.status === 'pending').length,
         cancelledAppointments: appointmentsRes.data.filter(apt => apt.status === 'cancelled').length,
-        unreadMessages: unreadCount
-      });
-
-      // Update appointment stats
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-
-      const todayAppointments = appointmentsRes.data.filter(apt => {
-        const aptDate = new Date(apt.date);
-        return aptDate >= today && aptDate < tomorrow;
-      });
-
-      const upcomingAppointments = appointmentsRes.data.filter(apt => {
-        const aptDate = new Date(apt.date);
-        return aptDate >= tomorrow;
-      });
-
-      setAppointmentStats({
-        today: todayAppointments.length,
-        upcoming: upcomingAppointments.length,
-        completed: appointmentsRes.data.filter(apt => apt.status === 'completed').length,
-        cancelled: appointmentsRes.data.filter(apt => apt.status === 'cancelled').length
+        unreadMessages: calculateUnreadCount(messagesRes.data)
       });
 
     } catch (error) {
-      console.error('Dashboard data fetch error:', error);
       setError(error.message || 'Failed to fetch dashboard data');
       
       if (error.response?.status === 401 || error.response?.status === 403) {
@@ -216,17 +439,16 @@ const AdminDashboard = () => {
     }
   }, [navigate]);
 
-  const fetchMessages = async () => {
+  const fetchMessages = useCallback(async () => {
     try {
       const response = await api.get('/contact');
       const fetchedMessages = response.data;
       setMessages(fetchedMessages);
       setUnreadCount(calculateUnreadCount(fetchedMessages));
     } catch (error) {
-      console.error('Error fetching messages:', error);
       setError('Failed to fetch messages');
     }
-  };
+  }, []);
 
   const handleMessageAction = async (messageId, action) => {
     try {
@@ -272,24 +494,35 @@ const AdminDashboard = () => {
     // Set up polling for new messages every 30 seconds
     const interval = setInterval(fetchMessages, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchMessages]);
 
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
   };
 
-  const handleStatusChange = async (appointmentId, newStatus) => {
-    try {
-      await api.put(`/admin/appointments/${appointmentId}/status`, {
-        status: newStatus,
-      });
-      setSuccess("Appointment status updated successfully");
-      fetchDashboardData();
-    } catch (err) {
-      console.error("Status update error:", err);
-      setError(err.response?.data?.message || "Failed to update appointment status");
-    }
-  };
+  useEffect(() => {
+    const fetchDepartments = async () => {
+      try {
+        const res = await api.get('/admin/departments');
+        setDeptList(res.data || []);
+      } catch {
+        setDeptList([]);
+      }
+    };
+    fetchDepartments();
+  }, []);
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const res = await api.get('/users');
+        setUsersList(res.data || []);
+      } catch {
+        setUsersList([]);
+      }
+    };
+    fetchUsers();
+  }, []);
 
   const handleDoctorStatusChange = async (doctorId, newStatus) => {
     try {
@@ -318,7 +551,6 @@ const AdminDashboard = () => {
       setSuccess("All doctors have been activated");
       fetchDashboardData();
     } catch (err) {
-      console.error("Error activating doctors:", err);
       setError("Failed to activate all doctors. Please try again.");
     }
   };
@@ -488,12 +720,10 @@ const AdminDashboard = () => {
           setHistoryDialogOpen(true);
 
         } catch (err) {
-          console.error('Error fetching patient history:', err);
           setError('Failed to fetch patient history. Please try again.');
         }
       }
     } catch (err) {
-      console.error('Error fetching history:', err);
       setError(`Failed to fetch ${isDoctor ? 'doctor' : 'patient'} history. Please try again.`);
     } finally {
       setLoading(false);
@@ -538,7 +768,6 @@ const AdminDashboard = () => {
       // Refresh appointments
       await fetchDashboardData();
     } catch (error) {
-      console.error('Error updating appointment:', error);
       setError(error.response?.data?.message || 'Failed to update appointment');
       enqueueSnackbar(error.response?.data?.message || 'Failed to update appointment', {
         variant: 'error'
@@ -593,7 +822,6 @@ const AdminDashboard = () => {
       // Refresh the dashboard data
       await fetchDashboardData();
     } catch (error) {
-      console.error('Error cancelling appointment:', error);
       enqueueSnackbar(error.response?.data?.message || 'Failed to cancel appointment', { variant: 'error' });
     } finally {
       setLoading(false);
@@ -648,29 +876,6 @@ const AdminDashboard = () => {
         appointment.status === 'cancelled'
       )
     };
-  };
-
-  const handleMessageStatusUpdate = async (messageId, status) => {
-    try {
-      await api.patch(`/contact/${messageId}`, { status });
-      // Refresh messages after update
-      await fetchMessages();
-      setSuccess(`Message marked as ${status} successfully`);
-    } catch (error) {
-      console.error('Error updating message status:', error);
-      setError('Failed to update message status');
-    }
-  };
-
-  const handleDeleteMessage = async (messageId) => {
-    try {
-      await api.delete(`/contact/${messageId}`);
-      setSuccess("Message deleted successfully");
-      fetchDashboardData();
-    } catch (err) {
-      console.error("Message deletion error:", err);
-      setError(err.response?.data?.message || "Failed to delete message");
-    }
   };
 
   const handleReplyMessage = (message) => {
@@ -2100,12 +2305,14 @@ return (
             fontWeight: unreadCount > 0 ? 'bold' : 'normal'
           }}
         />
+        <Tab label="Admin Actions" />
       </Tabs>
       <Box sx={{ p: 2 }}>
         {activeTab === 0 && renderDoctors()}
         {activeTab === 1 && renderPatients()}
         {activeTab === 2 && renderAppointments()}
         {activeTab === 3 && renderMessages()}
+        {activeTab === 4 && renderAdminActions()}
       </Box>
     </Paper>
 

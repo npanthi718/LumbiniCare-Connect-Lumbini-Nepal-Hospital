@@ -4,12 +4,7 @@ const { authenticateToken } = require('../middleware/auth');
 const Appointment = require('../models/appointment.model');
 const Prescription = require('../models/prescription.model');
 
-// Debug middleware to log all requests
-router.use((req, res, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
-  console.log('Headers:', req.headers);
-  next();
-});
+// Debug middleware removed to reduce noise
 
 // Get patient's appointments
 router.get('/appointments', authenticateToken, async (req, res) => {
@@ -19,8 +14,6 @@ router.get('/appointments', authenticateToken, async (req, res) => {
       return res.status(403).json({ message: 'Access denied: Patient only' });
     }
 
-    console.log('Fetching appointments for patient:', req.user._id);
-    
     if (!req.user || !req.user._id) {
       return res.status(401).json({ message: 'User ID not found in request' });
     }
@@ -59,10 +52,8 @@ router.get('/appointments', authenticateToken, async (req, res) => {
       };
     });
 
-    console.log('Transformed appointments:', JSON.stringify(transformedAppointments, null, 2));
     res.json(transformedAppointments);
   } catch (error) {
-    console.error('Error fetching patient appointments:', error);
     res.status(500).json({ 
       message: 'Failed to fetch appointments', 
       error: error.message
@@ -77,9 +68,6 @@ router.get('/prescriptions', authenticateToken, async (req, res) => {
     if (req.user.role !== 'patient') {
       return res.status(403).json({ message: 'Access denied: Patient only' });
     }
-
-    console.log('Fetching prescriptions for patient:', req.user._id);
-    console.log('User object:', req.user);
 
     if (!req.user || !req.user._id) {
       return res.status(401).json({ message: 'User ID not found in request' });
@@ -96,10 +84,8 @@ router.get('/prescriptions', authenticateToken, async (req, res) => {
       .sort({ createdAt: -1 })
       .lean();
 
-    console.log(`Found ${prescriptions.length} prescriptions for patient ${req.user._id}`);
     res.json(prescriptions);
   } catch (error) {
-    console.error('Error fetching patient prescriptions:', error);
     res.status(500).json({ 
       message: 'Error fetching prescriptions', 
       error: error.message,

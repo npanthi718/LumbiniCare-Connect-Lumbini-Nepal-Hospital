@@ -29,7 +29,6 @@ router.get('/stats', async (req, res) => {
       pendingApprovals
     });
   } catch (error) {
-    console.error('Error fetching stats:', error);
     res.status(500).json({ message: 'Error fetching stats', error: error.message });
   }
 });
@@ -37,7 +36,6 @@ router.get('/stats', async (req, res) => {
 // Get all appointments (admin only)
 router.get('/appointments', async (req, res) => {
   try {
-    console.log('Fetching all appointments...');
     const appointments = await Appointment.find()
       .populate({
         path: 'doctorId',
@@ -48,11 +46,8 @@ router.get('/appointments', async (req, res) => {
       })
       .populate('patientId', 'name email')
       .lean();
-    
-    console.log(`Found ${appointments.length} appointments`);
     res.json(appointments);
   } catch (error) {
-    console.error('Error fetching appointments:', error);
     res.status(500).json({ message: 'Error fetching appointments', error: error.message });
   }
 });
@@ -60,7 +55,6 @@ router.get('/appointments', async (req, res) => {
 // Get all doctors
 router.get('/doctors', async (req, res) => {
   try {
-    console.log('Fetching all doctors...');
     const doctors = await Doctor.find()
       .populate({
         path: 'userId',
@@ -76,11 +70,8 @@ router.get('/doctors', async (req, res) => {
           name: doctor.department?.name || 'Unknown Department'
         }
       })));
-    
-    console.log(`Found ${doctors.length} doctors`);
     res.json(doctors);
   } catch (error) {
-    console.error('Error fetching doctors:', error);
     res.status(500).json({ message: 'Error fetching doctors', error: error.message });
   }
 });
@@ -88,12 +79,9 @@ router.get('/doctors', async (req, res) => {
 // Get all patients
 router.get('/patients', async (req, res) => {
   try {
-    console.log('Fetching all patients...');
     const patients = await User.find({ role: 'patient' }).lean();
-    console.log(`Found ${patients.length} patients`);
     res.json(patients);
   } catch (error) {
-    console.error('Error fetching patients:', error);
     res.status(500).json({ message: 'Error fetching patients', error: error.message });
   }
 });
@@ -101,12 +89,9 @@ router.get('/patients', async (req, res) => {
 // Get all departments
 router.get('/departments', async (req, res) => {
   try {
-    console.log('Fetching all departments...');
     const departments = await Department.find().lean();
-    console.log(`Found ${departments.length} departments`);
     res.json(departments);
   } catch (error) {
-    console.error('Error fetching departments:', error);
     res.status(500).json({ message: 'Error fetching departments', error: error.message });
   }
 });
@@ -159,14 +144,8 @@ router.patch('/appointments/:id/status', async (req, res) => {
       })
       .lean();
 
-    console.log('Appointment status updated:', {
-      id: updatedAppointment._id,
-      status: updatedAppointment.status
-    });
-
     res.json(updatedAppointment);
   } catch (error) {
-    console.error('Error updating appointment status:', error);
     res.status(500).json({ 
       message: 'Error updating appointment status',
       error: error.message
@@ -177,7 +156,6 @@ router.patch('/appointments/:id/status', async (req, res) => {
 // Get patient appointments
 router.get('/patients/:id/appointments', async (req, res) => {
   try {
-    console.log('Fetching patient appointments...');
     const appointments = await Appointment.find({ patientId: req.params.id })
       .populate({
         path: 'doctorId',
@@ -188,11 +166,8 @@ router.get('/patients/:id/appointments', async (req, res) => {
       })
       .populate('patientId', 'name email')
       .lean();
-    
-    console.log(`Found ${appointments.length} appointments for patient ${req.params.id}`);
     res.json(appointments);
   } catch (error) {
-    console.error('Error fetching patient appointments:', error);
     res.status(500).json({ message: 'Error fetching patient appointments', error: error.message });
   }
 });
@@ -200,7 +175,6 @@ router.get('/patients/:id/appointments', async (req, res) => {
 // Get patient prescriptions
 router.get('/patients/:id/prescriptions', async (req, res) => {
   try {
-    console.log('Fetching patient prescriptions...');
     const prescriptions = await Prescription.find({ patientId: req.params.id })
       .populate({
         path: 'doctorId',
@@ -211,11 +185,8 @@ router.get('/patients/:id/prescriptions', async (req, res) => {
       })
       .populate('patientId', 'name email')
       .lean();
-    
-    console.log(`Found ${prescriptions.length} prescriptions for patient ${req.params.id}`);
     res.json(prescriptions);
   } catch (error) {
-    console.error('Error fetching patient prescriptions:', error);
     res.status(500).json({ message: 'Error fetching patient prescriptions', error: error.message });
   }
 });
@@ -261,7 +232,6 @@ router.get('/doctors/:id/appointments', async (req, res) => {
 
     res.json(transformedAppointments);
   } catch (error) {
-    console.error('Error fetching doctor appointments:', error);
     res.status(500).json({ message: 'Error fetching doctor appointments', error: error.message });
   }
 });
@@ -283,18 +253,11 @@ router.get('/doctors/:id/prescriptions', async (req, res) => {
           }
         ]
       })
-      .populate({
-        path: 'patientId',
-        populate: {
-          path: 'userId',
-          select: 'name email'
-        }
-      })
+      .populate('patientId', 'name email phone')
       .sort({ createdAt: -1 });
 
     res.json(prescriptions);
   } catch (error) {
-    console.error('Error fetching doctor prescriptions:', error);
     res.status(500).json({ message: 'Error fetching doctor prescriptions' });
   }
 });

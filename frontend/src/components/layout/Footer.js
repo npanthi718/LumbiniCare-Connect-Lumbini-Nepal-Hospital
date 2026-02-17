@@ -11,7 +11,6 @@ import {
 import { Link as RouterLink } from 'react-router-dom';
 import {
   Facebook,
-  Twitter,
   Instagram,
   LinkedIn,
   Phone,

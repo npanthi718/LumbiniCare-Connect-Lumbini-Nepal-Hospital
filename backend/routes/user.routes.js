@@ -94,6 +94,31 @@ router.delete('/:id', authenticateToken, isAdmin, async (req, res) => {
     }
 });
 
+// Reset user password (admin only)
+router.patch('/:id/password', authenticateToken, isAdmin, [
+    body('newPassword').isString().isLength({ min: 6 }).withMessage('Password must be at least 6 characters')
+], async (req, res) => {
+    try {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ errors: errors.array() });
+        }
+
+        const user = await User.findById(req.params.id);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        user.password = req.body.newPassword;
+        await user.save();
+
+        const { password, ...safeUser } = user.toObject();
+        res.json({ message: 'Password reset successfully', user: safeUser });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
 // Get user statistics (admin only)
 router.get('/stats/overview', authenticateToken, isAdmin, async (req, res) => {
     try {

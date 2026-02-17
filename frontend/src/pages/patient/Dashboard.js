@@ -27,20 +27,16 @@ import {
   Avatar,
   Chip,
   IconButton,
-  Tooltip,
 } from '@mui/material';
 import {
-  CalendarToday,
   AccessTime,
   LocalHospital,
-  History,
-  Assignment,
   Close,
   Event,
   CheckCircle,
   Cancel,
 } from '@mui/icons-material';
-import { format, addDays } from 'date-fns';
+import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 
 // Add request interceptor to add token
@@ -50,46 +46,15 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('Request:', {
-        url: config.url,
-        method: config.method,
-        data: config.data,
-        headers: config.headers
-      });
-    }
     return config;
   },
-  (error) => {
-    if (process.env.NODE_ENV !== 'production') {
-      console.error('Request error:', error);
-    }
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
 // Add response interceptor for better error handling
 api.interceptors.response.use(
-  (response) => {
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('Response:', {
-        url: response.config.url,
-        status: response.status,
-        data: response.data
-      });
-    }
-    return response;
-  },
+  (response) => response,
   (error) => {
-    if (process.env.NODE_ENV !== 'production') {
-      console.error('API Error:', {
-        url: error.config?.url,
-        status: error.response?.status,
-        data: error.response?.data,
-        message: error.message
-      });
-    }
-    
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
       window.location.href = '/login';
@@ -128,25 +93,19 @@ const Dashboard = () => {
         // Fetch prescriptions with proper endpoint
         const prescriptionsRes = await api.get('/patients/prescriptions');
 
-        console.log('Appointments data:', appointmentsRes.data);
-        console.log('Prescriptions data:', prescriptionsRes.data);
-
         if (Array.isArray(appointmentsRes.data)) {
           setAppointments(appointmentsRes.data);
         } else {
-          console.error('Invalid appointments data format:', appointmentsRes.data);
           throw new Error('Invalid appointments data received');
         }
 
         if (Array.isArray(prescriptionsRes.data)) {
           setPrescriptions(prescriptionsRes.data);
         } else {
-          console.error('Invalid prescriptions data format:', prescriptionsRes.data);
           throw new Error('Invalid prescriptions data received');
         }
 
       } catch (err) {
-        console.error('Failed to fetch dashboard data:', err);
         setError(err.response?.data?.message || err.message || 'Failed to fetch data');
       } finally {
         setLoading(false);
@@ -196,30 +155,9 @@ const Dashboard = () => {
     }
   };
 
-  const getAppointmentStatus = (status) => {
-    switch (status) {
-      case 'pending':
-        return <Typography color="warning.main">Pending</Typography>;
-      case 'confirmed':
-        return <Typography color="success.main">Confirmed</Typography>;
-      case 'completed':
-        return <Typography color="info.main">Completed</Typography>;
-      case 'cancelled':
-        return <Typography color="error.main">Cancelled</Typography>;
-      default:
-        return status;
-    }
-  };
+  // Removed unused getAppointmentStatus to satisfy lint
 
-  const fetchAppointments = async () => {
-    try {
-      const appointmentsRes = await api.get('/patients/appointments');
-      setAppointments(appointmentsRes.data);
-    } catch (error) {
-      console.error('Error fetching appointments:', error);
-      setError(error.response?.data?.message || 'Failed to fetch appointments');
-    }
-  };
+  // Removed unused fetchAppointments to satisfy lint
 
   const renderAppointments = () => {
     // Filter appointments by status

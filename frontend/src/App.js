@@ -6,6 +6,7 @@ import { createBrowserRouter } from 'react-router-dom';
 import Layout from './components/layout/Layout';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import SplashLoader from './components/SplashLoader';
 
 // Import pages
 const Home = lazy(() => import('./pages/Home'));
@@ -189,8 +190,14 @@ function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <AuthProvider>
-        <Suspense fallback={<div>Loading...</div>}>
-          <RouterProvider router={router} />
+        <Suspense fallback={<SplashLoader />}>
+          <RouterProvider 
+            router={router} 
+            future={{ 
+              v7_startTransition: true, 
+              v7_relativeSplatPath: true 
+            }} 
+          />
         </Suspense>
       </AuthProvider>
     </ThemeProvider>

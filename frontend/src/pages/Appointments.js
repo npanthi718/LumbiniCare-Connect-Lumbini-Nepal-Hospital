@@ -45,43 +45,16 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    if (process.env.NODE_ENV !== 'production') {
-      console.log("Request config:", {
-        url: config.url,
-        method: config.method,
-        headers: config.headers,
-      });
-    }
     return config;
   },
-  (error) => {
-    if (process.env.NODE_ENV !== 'production') {
-      console.error("Request interceptor error:", error);
-    }
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
 // Add response interceptor for better error handling
 api.interceptors.response.use(
-  (response) => {
-    if (process.env.NODE_ENV !== 'production') {
-      console.log("Response:", {
-        url: response.config.url,
-        status: response.status,
-        data: response.data,
-      });
-    }
-    return response;
-  },
+  (response) => response,
   (error) => {
-    if (process.env.NODE_ENV !== 'production') {
-      console.error("API Error Response:", error.response?.data);
-    }
     if (error.response?.status === 401) {
-      if (process.env.NODE_ENV !== 'production') {
-        console.log("Unauthorized access, redirecting to login...");
-      }
       localStorage.removeItem("token");
       window.location.href = "/login";
     }
