@@ -60,27 +60,31 @@ const doctorSchema = new mongoose.Schema({
   availability: {
     type: [availabilitySchema],
     required: true,
+    default: function() {
+      return [
+        { dayOfWeek: 0, startTime: '09:00', endTime: '19:00', isAvailable: true }, // Sunday
+        { dayOfWeek: 1, startTime: '09:00', endTime: '19:00', isAvailable: true }, // Monday
+        { dayOfWeek: 2, startTime: '09:00', endTime: '19:00', isAvailable: true }, // Tuesday
+        { dayOfWeek: 3, startTime: '09:00', endTime: '19:00', isAvailable: true }, // Wednesday
+        { dayOfWeek: 4, startTime: '09:00', endTime: '19:00', isAvailable: true }, // Thursday
+        { dayOfWeek: 5, startTime: '09:00', endTime: '19:00', isAvailable: true }, // Friday
+        { dayOfWeek: 6, startTime: '09:00', endTime: '19:00', isAvailable: true }  // Saturday
+      ];
+    },
     validate: [arr => arr.length === 7, 'Must have availability for all 7 days of the week']
   }
 }, {
   timestamps: true
 });
 
+doctorSchema.index({ userId: 1 });
+doctorSchema.index({ department: 1 });
+doctorSchema.index({ specialization: 1 });
+doctorSchema.index({ isApproved: 1 });
+doctorSchema.index({ status: 1 });
+
 // Pre-save hook to set default availability if not provided
-doctorSchema.pre('save', function(next) {
-  if (!this.availability || this.availability.length === 0) {
-    this.availability = [
-      { dayOfWeek: 0, startTime: '09:00', endTime: '19:00', isAvailable: true }, // Sunday
-      { dayOfWeek: 1, startTime: '09:00', endTime: '19:00', isAvailable: true }, // Monday
-      { dayOfWeek: 2, startTime: '09:00', endTime: '19:00', isAvailable: true }, // Tuesday
-      { dayOfWeek: 3, startTime: '09:00', endTime: '19:00', isAvailable: true }, // Wednesday
-      { dayOfWeek: 4, startTime: '09:00', endTime: '19:00', isAvailable: true }, // Thursday
-      { dayOfWeek: 5, startTime: '09:00', endTime: '19:00', isAvailable: true }, // Friday
-      { dayOfWeek: 6, startTime: '09:00', endTime: '19:00', isAvailable: true }  // Saturday
-    ];
-  }
-  next();
-});
+// Defaults above ensure availability exists before validation
 
 const Doctor = mongoose.model('Doctor', doctorSchema);
 

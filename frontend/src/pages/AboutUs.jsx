@@ -8,48 +8,22 @@ import {
   Card,
   CardContent,
   Avatar,
-  Divider,
   List,
   ListItem,
   ListItemIcon,
   ListItemText,
 } from '@mui/material';
 import {
-  LocalHospital as LocalHospitalIcon,
-  Groups as GroupsIcon,
   EmojiEvents as EmojiEventsIcon,
-  Science as ScienceIcon,
   CheckCircle as CheckCircleIcon,
   MedicalServices as MedicalServicesIcon,
   School as SchoolIcon,
   Psychology as PsychologyIcon,
   Healing as HealingIcon,
-  Timeline as TimelineIcon,
 } from '@mui/icons-material';
 
 const AboutUs = () => {
-  const features = [
-    {
-      icon: <LocalHospitalIcon sx={{ fontSize: 40 }} />,
-      title: 'State-of-the-Art Facilities',
-      description: 'Modern medical equipment and comfortable patient care environment with advanced diagnostic and treatment facilities.',
-    },
-    {
-      icon: <GroupsIcon sx={{ fontSize: 40 }} />,
-      title: 'Expert Medical Team',
-      description: 'Highly qualified doctors and healthcare professionals with extensive experience in their respective fields.',
-    },
-    {
-      icon: <EmojiEventsIcon sx={{ fontSize: 40 }} />,
-      title: 'Quality Care',
-      description: 'Committed to providing the highest standard of healthcare services with a patient-centric approach.',
-    },
-    {
-      icon: <ScienceIcon sx={{ fontSize: 40 }} />,
-      title: 'Advanced Technology',
-      description: 'Utilizing cutting-edge medical technology and treatments to ensure the best possible outcomes.',
-    },
-  ];
+ 
 
   const managementTeam = [
 
@@ -198,8 +172,8 @@ const AboutUs = () => {
                 <Typography variant="h6" gutterBottom align="center">
                   Compassion
                 </Typography>
-                <Typography variant="body2" align="center">
-                  Treating every patient with care and empathy
+                <Typography variant="body2" color="text.secondary" align="center">
+                  We prioritise patient care and their well-being above all else.
                 </Typography>
               </CardContent>
             </Card>
@@ -208,28 +182,13 @@ const AboutUs = () => {
             <Card sx={{ height: '100%' }}>
               <CardContent>
                 <Box sx={{ textAlign: 'center', mb: 2 }}>
-                  <CheckCircleIcon color="primary" sx={{ fontSize: 40 }} />
+                  <MedicalServicesIcon color="primary" sx={{ fontSize: 40 }} />
                 </Box>
                 <Typography variant="h6" gutterBottom align="center">
                   Excellence
                 </Typography>
-                <Typography variant="body2" align="center">
-                  Striving for the highest standards in healthcare
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <Card sx={{ height: '100%' }}>
-              <CardContent>
-                <Box sx={{ textAlign: 'center', mb: 2 }}>
-                  <PsychologyIcon color="primary" sx={{ fontSize: 40 }} />
-                </Box>
-                <Typography variant="h6" gutterBottom align="center">
-                  Innovation
-                </Typography>
-                <Typography variant="body2" align="center">
-                  Embracing new technologies and methods
+                <Typography variant="body2" color="text.secondary" align="center">
+                  We strive to deliver the highest quality medical services.
                 </Typography>
               </CardContent>
             </Card>
@@ -243,8 +202,23 @@ const AboutUs = () => {
                 <Typography variant="h6" gutterBottom align="center">
                   Education
                 </Typography>
-                <Typography variant="body2" align="center">
-                  Continuous learning and development
+                <Typography variant="body2" color="text.secondary" align="center">
+                  We promote continuous learning and medical training.
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <Card sx={{ height: '100%' }}>
+              <CardContent>
+                <Box sx={{ textAlign: 'center', mb: 2 }}>
+                  <PsychologyIcon color="primary" sx={{ fontSize: 40 }} />
+                </Box>
+                <Typography variant="h6" gutterBottom align="center">
+                  Innovation
+                </Typography>
+                <Typography variant="body2" color="text.secondary" align="center">
+                  We embrace modern technology to improve patient outcomes.
                 </Typography>
               </CardContent>
             </Card>
@@ -252,33 +226,51 @@ const AboutUs = () => {
         </Grid>
       </Box>
 
+      {/* Achievements */}
+      <Box sx={{ mb: 8 }}>
+        <Typography variant="h4" gutterBottom align="center" sx={{ mb: 4 }}>
+          Achievements
+        </Typography>
+        <Grid container spacing={3}>
+          {achievements.map((achievement, index) => (
+            <Grid item xs={12} sm={6} md={3} key={index}>
+              <Card sx={{ height: '100%' }}>
+                <CardContent>
+                  <Box sx={{ textAlign: 'center', mb: 2 }}>
+                    <EmojiEventsIcon color="primary" sx={{ fontSize: 40 }} />
+                  </Box>
+                  <Typography variant="body1" align="center">{achievement}</Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
+      </Box>
+
       {/* Management Team */}
       <Box sx={{ mb: 8 }}>
         <Typography variant="h4" gutterBottom align="center" sx={{ mb: 4 }}>
-          Our Management Team
+          Management Team
         </Typography>
-        <Grid container spacing={4}>
+        <Grid container spacing={3}>
           {managementTeam.map((member, index) => (
-            <Grid item xs={12} md={4} key={index}>
+            <Grid item xs={12} sm={6} md={3} key={index}>
               <Card sx={{ height: '100%' }}>
                 <CardContent>
                   <Box sx={{ textAlign: 'center', mb: 2 }}>
                     <Avatar
-                      sx={{ width: 120, height: 120, mx: 'auto', mb: 2 }}
                       alt={member.name}
                       src={member.image}
-                      imgProps={{ loading: 'lazy', decoding: 'async' }}
+                      sx={{ width: 80, height: 80, margin: '0 auto' }}
                     />
-                    <Typography variant="h6" gutterBottom>
-                      {member.name}
-                    </Typography>
-                    <Typography variant="subtitle1" color="primary" gutterBottom>
-                      {member.position}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {member.description}
-                    </Typography>
                   </Box>
+                  <Typography variant="h6" align="center">{member.name}</Typography>
+                  <Typography variant="subtitle2" color="text.secondary" align="center">
+                    {member.position}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" align="center" sx={{ mt: 1 }}>
+                    {member.description}
+                  </Typography>
                 </CardContent>
               </Card>
             </Grid>
@@ -289,136 +281,23 @@ const AboutUs = () => {
       {/* Facilities */}
       <Box sx={{ mb: 8 }}>
         <Typography variant="h4" gutterBottom align="center" sx={{ mb: 4 }}>
-          Our Facilities
-        </Typography>
-        <Grid container spacing={2}>
-          {facilities.map((facility, index) => (
-            <Grid item xs={12} sm={6} md={3} key={index}>
-              <Paper elevation={1} sx={{ p: 2 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <MedicalServicesIcon color="primary" />
-                  <Typography variant="body1">{facility}</Typography>
-                </Box>
-              </Paper>
-            </Grid>
-          ))}
-        </Grid>
-      </Box>
-
-      {/* Achievements */}
-      <Box sx={{ mb: 8 }}>
-        <Typography variant="h4" gutterBottom align="center" sx={{ mb: 4 }}>
-          Our Achievements
+          Facilities
         </Typography>
         <Paper elevation={3} sx={{ p: 4 }}>
           <List>
-            {achievements.map((achievement, index) => (
-              <React.Fragment key={index}>
-                <ListItem>
-                  <ListItemIcon>
-                    <EmojiEventsIcon color="primary" />
-                  </ListItemIcon>
-                  <ListItemText primary={achievement} />
-                </ListItem>
-                {index < achievements.length - 1 && <Divider />}
-              </React.Fragment>
+            {facilities.map((facility, index) => (
+              <ListItem key={index}>
+                <ListItemIcon>
+                  <CheckCircleIcon color="primary" />
+                </ListItemIcon>
+                <ListItemText primary={facility} />
+              </ListItem>
             ))}
           </List>
         </Paper>
       </Box>
-
-      {/* History Section */}
-      <Box sx={{ mb: 8 }}>
-        <Typography variant="h4" gutterBottom align="center" sx={{ mb: 4 }}>
-          Our Journey
-        </Typography>
-        <Paper elevation={3} sx={{ p: 4 }}>
-          <Grid container spacing={4}>
-            <Grid item xs={12} md={6}>
-              <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
-                <TimelineIcon color="primary" sx={{ mt: 1 }} />
-                <Box>
-                  <Typography variant="h6" gutterBottom>
-                    2010 - Foundation
-                  </Typography>
-                  <Typography paragraph>
-                    Established as a small community clinic with basic healthcare services
-                    in Butwal, serving the local community with dedication.
-                  </Typography>
-                </Box>
-              </Box>
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
-                <TimelineIcon color="primary" sx={{ mt: 1 }} />
-                <Box>
-                  <Typography variant="h6" gutterBottom>
-                    2015 - Expansion
-                  </Typography>
-                  <Typography paragraph>
-                    Major expansion with addition of specialized departments, modern
-                    equipment, and increased bed capacity.
-                  </Typography>
-                </Box>
-              </Box>
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
-                <TimelineIcon color="primary" sx={{ mt: 1 }} />
-                <Box>
-                  <Typography variant="h6" gutterBottom>
-                    2020 - Modernization
-                  </Typography>
-                  <Typography paragraph>
-                    Complete hospital modernization with state-of-the-art medical
-                    technology and enhanced patient care facilities.
-                  </Typography>
-                </Box>
-              </Box>
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
-                <TimelineIcon color="primary" sx={{ mt: 1 }} />
-                <Box>
-                  <Typography variant="h6" gutterBottom>
-                    2023 - Excellence Center
-                  </Typography>
-                  <Typography paragraph>
-                    Recognized as a center of excellence in healthcare, serving as a
-                    model institution in Lumbini Province.
-                  </Typography>
-                </Box>
-              </Box>
-            </Grid>
-          </Grid>
-        </Paper>
-      </Box>
-
-      {/* Features */}
-      <Typography variant="h4" gutterBottom align="center" sx={{ mb: 4 }}>
-        Why Choose Us
-      </Typography>
-      <Grid container spacing={4}>
-        {features.map((feature, index) => (
-          <Grid item xs={12} sm={6} md={3} key={index}>
-            <Card sx={{ height: '100%' }}>
-              <CardContent sx={{ textAlign: 'center' }}>
-                <Box sx={{ color: 'primary.main', mb: 2 }}>
-                  {feature.icon}
-                </Box>
-                <Typography variant="h6" gutterBottom>
-                  {feature.title}
-                </Typography>
-                <Typography color="text.secondary">
-                  {feature.description}
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
     </Container>
   );
 };
 
-export default AboutUs; 
+export default AboutUs;

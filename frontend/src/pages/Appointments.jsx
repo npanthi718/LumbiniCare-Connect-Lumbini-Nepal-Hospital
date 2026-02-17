@@ -36,7 +36,7 @@ import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { useAuth } from "../context/AuthContext";
-import { format, parse } from "date-fns";
+import { format } from "date-fns";
 
 // Add request interceptor to add token
 api.interceptors.request.use(
@@ -85,8 +85,7 @@ const Appointments = () => {
     notes: "",
   });
   const [showLoginDialog, setShowLoginDialog] = useState(false);
-  const [viewDialog, setViewDialog] = useState(false);
-  const [rebookingDetails, setRebookingDetails] = useState(null);
+ 
   const [timeSlots, setTimeSlots] = useState([]);
   const [timeSlotMessage, setTimeSlotMessage] = useState('');
 
@@ -112,13 +111,12 @@ const Appointments = () => {
       }
     }
     fetchAppointments();
-    fetchDoctors();
   }, [location]);
 
   useEffect(() => {
-    if (error) {
-      console.error("Appointment Error:", error);
-    }
+    if (!error) return;
+    // minimal reaction to error state
+    setOpenActionDialog(false);
   }, [error]);
 
   useEffect(() => {
@@ -139,7 +137,6 @@ const Appointments = () => {
   useEffect(() => {
     const state = location.state;
     if (state?.isRebooking && state?.rebookData) {
-      setRebookingDetails(state.rebookData);
       setFormData({
         doctorId: state.rebookData.doctorId,
         date: state.rebookData.date,
@@ -187,15 +184,17 @@ const Appointments = () => {
     try {
       setLoading(true);
       const response = await api.get("/doctors", {
-        params: {
-          populate:
-            "userId,department,specialization,experience,education,license,consultationFee,availableSlots",
-        },
+        params: { page: 1, limit: 50, minimal: true },
       });
-      console.log("Fetched doctors:", response.data);
-      setDoctors(response.data);
+      setDoctors((response.data?.items || []).map(d => ({
+        _id: d._id,
+        userId: { name: d.user?.name },
+        department: { name: d.department?.name },
+        specialization: d.specialization,
+        experience: d.experience,
+        consultationFee: d.consultationFee
+      })));
     } catch (err) {
-      console.error("Failed to fetch doctors:", err);
       setError("Failed to load doctors. Please try again later.");
     } finally {
       setLoading(false);
@@ -210,7 +209,6 @@ const Appointments = () => {
   };
 
   const handleDateChange = (newDate) => {
-    console.log("New date selected:", newDate);
     setFormData((prev) => ({
       ...prev,
       date: newDate,
@@ -218,7 +216,6 @@ const Appointments = () => {
   };
 
   const handleTimeChange = (newTime) => {
-    console.log("New time selected:", newTime);
     setFormData((prev) => ({
       ...prev,
       time: newTime
@@ -226,12 +223,10 @@ const Appointments = () => {
   };
 
   const handleNext = () => {
-    console.log("Current form data:", formData);
     setActiveStep((prev) => prev + 1);
   };
 
   const handleBack = () => {
-    console.log("Current form data:", formData);
     setActiveStep((prev) => prev - 1);
   };
 
@@ -272,8 +267,7 @@ const Appointments = () => {
             setError(response.message);
           }
         })
-        .catch(error => {
-          console.error('Failed to fetch time slots:', error);
+        .catch(() => {
           setError('Failed to fetch available time slots');
         });
     }
@@ -330,10 +324,15 @@ const Appointments = () => {
         await fetchAppointments();
       }
     } catch (error) {
-      console.error('Error booking appointment:', error);
       setError(error.response?.data?.message || 'Failed to book appointment. Please try again.');
     }
   };
+
+  useEffect(() => {
+    if (openDialog && doctors.length === 0) {
+      fetchDoctors();
+    }
+  }, [openDialog, doctors.length]);
 
   
 
@@ -593,10 +592,7 @@ const Appointments = () => {
     }
   };
 
-  const handleViewDetails = (appointment) => {
-    setSelectedAppointment(appointment);
-    setViewDialog(true);
-  };
+ 
 
   const renderAppointments = () => {
     return (
@@ -625,27 +621,33 @@ const Appointments = () => {
                 <TableCell>{appointment.doctorId?.specialization || 'Not Available'}</TableCell>
                 <TableCell>
                   <Typography variant="body2">
-                    {format(new Date(appointment.date), 'MMM dd, yyyy')}
-                  </Typography>
-                  <Typography variant="caption" color="textSecondary">
-                    {appointment.timeSlot}
+                    {format(new Date(appointment.date), 'MMM dd, yyyy')} at {appointment.timeSlot}
                   </Typography>
                 </TableCell>
                 <TableCell>
                   <Chip
-                    label={appointment.status}
-                    color={getStatusColor(appointment.status)}
+                    label={appointment.status || 'pending'}
+                    color={getStatusColor(appointment.status || 'pending')}
                     size="small"
                   />
                 </TableCell>
                 <TableCell>
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    onClick={() => handleViewDetails(appointment)}
-                  >
-                    View Details
-                  </Button>
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    
+                    {appointment.status !== 'completed' && (
+                      <Button
+                        variant="contained"
+                        size="small"
+                        color="success"
+                        onClick={() => {
+                          setSelectedAppointment(appointment);
+                          setOpenActionDialog(true);
+                        }}
+                      >
+                        Complete
+                      </Button>
+                    )}
+                  </Box>
                 </TableCell>
               </TableRow>
             ))}
@@ -656,66 +658,78 @@ const Appointments = () => {
   };
 
   const renderTimeSlots = () => {
-    if (!formData.date) {
-      return <Typography color="textSecondary">Please select a date first</Typography>;
-    }
-
-    if (timeSlotMessage) {
-      return <Typography color="error">{timeSlotMessage}</Typography>;
-    }
-
-    if (!timeSlots.length) {
-      return <Typography color="error">No available time slots for this date</Typography>;
-    }
-
     return (
       <FormControl fullWidth>
-        <InputLabel>Select Time</InputLabel>
+        <InputLabel id="time-slot-label">Time Slot</InputLabel>
         <Select
+          labelId="time-slot-label"
           value={formData.time}
           onChange={(e) => handleTimeChange(e.target.value)}
-          label="Select Time"
+          label="Time Slot"
         >
-          {timeSlots.map((slot) => (
-            <MenuItem key={slot} value={slot}>
-              {format(parse(slot, 'HH:mm', new Date()), 'hh:mm a')}
+          {timeSlots.length > 0 ? (
+            timeSlots.map((slot, idx) => (
+              <MenuItem key={idx} value={slot}>
+                {slot}
+              </MenuItem>
+            ))
+          ) : (
+            <MenuItem value="" disabled>
+              {timeSlotMessage || 'No available time slots'}
             </MenuItem>
-          ))}
+          )}
         </Select>
       </FormControl>
     );
   };
 
-  const renderBookingDialog = () => (
-    <Dialog
-      open={openDialog}
-      onClose={() => setOpenDialog(false)}
-      maxWidth="md"
-      fullWidth
-      aria-labelledby="booking-dialog-title"
-    >
-      <DialogTitle id="booking-dialog-title">
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Typography variant="h6">
-            {isRebookingFromState ? 'Rebook Appointment' : 'Book New Appointment'}
-          </Typography>
-          <IconButton onClick={() => setOpenDialog(false)}>
-            <CloseIcon />
-          </IconButton>
-        </Box>
-      </DialogTitle>
-      <DialogContent>
-        {isRebookingFromState && rebookingDetails && (
-          <Alert severity="info" sx={{ mb: 2 }}>
-            <Typography variant="body2">
-              Previous Appointment: {rebookingDetails.previousDate} at {rebookingDetails.previousTime}<br />
-              Doctor: {rebookingDetails.doctorName}<br />
-              Department: {rebookingDetails.department}<br />
-              Cancellation Reason: {rebookingDetails.cancellationReason}
-            </Typography>
-          </Alert>
-        )}
-        <Box sx={{ mt: 2 }}>
+  return (
+    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+      <Typography variant="h4" gutterBottom>
+        Your Appointments
+      </Typography>
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>
+          {error}
+        </Alert>
+      )}
+      {success && (
+        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess('')}>
+          {success}
+        </Alert>
+      )}
+
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Button
+          variant="contained"
+          onClick={() => {
+            if (!user) {
+              setShowLoginDialog(true);
+              return;
+            }
+            setOpenDialog(true);
+          }}
+        >
+          Book New Appointment
+        </Button>
+        <Button variant="outlined" onClick={fetchAppointments}>
+          Refresh
+        </Button>
+      </Box>
+
+      {renderAppointments()}
+
+      <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="md" fullWidth>
+        <DialogTitle>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="h6">Book Appointment</Typography>
+            <IconButton onClick={() => setOpenDialog(false)} size="small">
+              <CloseIcon />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
           <Stepper activeStep={activeStep} sx={{ mb: 3 }}>
             {steps.map((label) => (
               <Step key={label}>
@@ -723,217 +737,75 @@ const Appointments = () => {
               </Step>
             ))}
           </Stepper>
+
           {renderStepContent(activeStep)}
-        </Box>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
-        {activeStep > 0 && <Button onClick={handleBack}>Back</Button>}
-        {activeStep < steps.length - 1 ? (
-          <Button
-            variant="contained"
-            onClick={handleNext}
-            disabled={!formData.doctorId || (activeStep === 1 && (!formData.date || !formData.time))}
-          >
-            Next
-          </Button>
-        ) : (
-          <Button 
-            variant="contained" 
-            color="primary" 
-            onClick={handleSubmit}
-          >
-            {isRebookingFromState ? 'Confirm Rebooking' : 'Book Appointment'}
-          </Button>
-        )}
-      </DialogActions>
-    </Dialog>
-  );
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
+          {activeStep > 0 && <Button onClick={handleBack}>Back</Button>}
+          {activeStep < steps.length - 1 ? (
+            <Button variant="contained" onClick={handleNext}>
+              Next
+            </Button>
+          ) : (
+            <Button variant="contained" onClick={handleSubmit}>
+              Confirm Booking
+            </Button>
+          )}
+        </DialogActions>
+      </Dialog>
 
-  return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-      <Box
-        display="flex"
-        justifyContent="space-between"
-        alignItems="center"
-        mb={4}
-      >
-        <Typography variant="h4" component="h1">
-          {user?.role === "doctor"
-            ? "My Patient Appointments"
-            : "My Appointments"}
-        </Typography>
-        {user?.role === "patient" && (
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={() => setOpenDialog(true)}
-          >
-            Book Appointment
-          </Button>
-        )}
-      </Box>
-
-      {isRebookingFromState && (
-        <Alert severity="info" sx={{ mb: 2 }}>
-          You are rebooking a cancelled appointment. Previous details have been pre-filled.
-        </Alert>
-      )}
-      
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
-          {error}
-        </Alert>
-      )}
-      {success && (
-        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(null)}>
-          {success}
-        </Alert>
-      )}
-
-      {renderAppointments()}
-
-      {renderBookingDialog()}
-
-      <Dialog open={showLoginDialog} onClose={() => setShowLoginDialog(false)}>
-        <DialogTitle>Login Required</DialogTitle>
+      <Dialog open={showLoginDialog} onClose={() => setShowLoginDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="h6">Login Required</Typography>
+            <IconButton onClick={() => setShowLoginDialog(false)} size="small">
+              <CloseIcon />
+            </IconButton>
+          </Box>
+        </DialogTitle>
         <DialogContent>
           <Typography>
-            You need to be logged in to book an appointment. Would you like to
-            log in now?
+            Please login to book an appointment. You will be redirected to the login page.
           </Typography>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setShowLoginDialog(false)}>Cancel</Button>
-          <Button
-            onClick={handleLoginRedirect}
-            variant="contained"
-            color="primary"
-          >
+          <Button variant="contained" onClick={handleLoginRedirect}>
             Go to Login
           </Button>
         </DialogActions>
       </Dialog>
 
-      <Dialog
-        open={openActionDialog}
-        onClose={() => setOpenActionDialog(false)}
-      >
+      <Dialog open={openActionDialog} onClose={() => setOpenActionDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle>
-          {selectedAppointment?.status === "pending" ? "Complete" : "Cancel"}{" "}
-          Appointment
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="h6">Complete Appointment</Typography>
+            <IconButton onClick={() => setOpenActionDialog(false)} size="small">
+              <CloseIcon />
+            </IconButton>
+          </Box>
         </DialogTitle>
         <DialogContent>
           <TextField
-            autoFocus
-            margin="dense"
-            label="Notes"
-            fullWidth
-            multiline
-            rows={4}
+            label="Notes (optional)"
             value={actionNotes}
             onChange={(e) => setActionNotes(e.target.value)}
+            fullWidth
+            multiline
+            rows={3}
+            sx={{ mt: 2 }}
           />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenActionDialog(false)}>Cancel</Button>
           <Button
-            onClick={() =>
-              handleAppointmentAction(
-                selectedAppointment?._id,
-                selectedAppointment?.status === "pending"
-                  ? "complete"
-                  : "cancel",
-                actionNotes
-              )
-            }
-            color={
-              selectedAppointment?.status === "pending" ? "success" : "error"
-            }
             variant="contained"
+            color="success"
+            onClick={() => handleAppointmentAction(selectedAppointment?._id, 'complete', actionNotes)}
           >
-            {selectedAppointment?.status === "pending" ? "Complete" : "Cancel"}{" "}
-            Appointment
+            Confirm Complete
           </Button>
-        </DialogActions>
-      </Dialog>
-
-      <Dialog
-        open={viewDialog}
-        onClose={() => setViewDialog(false)}
-        maxWidth="md"
-        fullWidth
-      >
-        <DialogTitle>Appointment Details</DialogTitle>
-        <DialogContent>
-          {selectedAppointment && (
-            <Box sx={{ pt: 2 }}>
-              <Grid container spacing={2}>
-                <Grid item xs={12} md={6}>
-                  <Typography variant="subtitle1" gutterBottom>
-                    <strong>Doctor:</strong> {selectedAppointment.doctorId?.name || 'Not Available'}
-                  </Typography>
-                  <Typography variant="subtitle1" gutterBottom>
-                    <strong>Department:</strong> {selectedAppointment.doctorId?.department?.name || 'Not Available'}
-                  </Typography>
-                  <Typography variant="subtitle1" gutterBottom>
-                    <strong>Specialization:</strong> {selectedAppointment.doctorId?.specialization || 'Not Available'}
-                  </Typography>
-                  <Typography variant="subtitle1" gutterBottom>
-                    <strong>Email:</strong> {selectedAppointment.doctorId?.email || 'Not Available'}
-                  </Typography>
-                  <Typography variant="subtitle1" gutterBottom>
-                    <strong>Phone:</strong> {selectedAppointment.doctorId?.phone || 'Not Available'}
-                  </Typography>
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <Typography variant="subtitle1" gutterBottom>
-                    <strong>Date:</strong> {format(new Date(selectedAppointment.date), 'MMM dd, yyyy')}
-                  </Typography>
-                  <Typography variant="subtitle1" gutterBottom>
-                    <strong>Time:</strong> {selectedAppointment.timeSlot}
-                  </Typography>
-                  <Typography variant="subtitle1" gutterBottom>
-                    <strong>Status:</strong> 
-                    <Chip
-                      label={selectedAppointment.status}
-                      color={getStatusColor(selectedAppointment.status)}
-                      size="small"
-                      sx={{ ml: 1 }}
-                    />
-                  </Typography>
-                </Grid>
-                <Grid item xs={12}>
-                  <Typography variant="subtitle1" gutterBottom>
-                    <strong>Type:</strong> {selectedAppointment.type}
-                  </Typography>
-                  {selectedAppointment.symptoms && (
-                    <>
-                      <Typography variant="subtitle1" gutterBottom>
-                        <strong>Symptoms:</strong>
-                      </Typography>
-                      <Typography paragraph sx={{ ml: 2 }}>
-                        {selectedAppointment.symptoms}
-                      </Typography>
-                    </>
-                  )}
-                  {selectedAppointment.notes && (
-                    <>
-                      <Typography variant="subtitle1" gutterBottom>
-                        <strong>Notes:</strong>
-                      </Typography>
-                      <Typography paragraph sx={{ ml: 2 }}>
-                        {selectedAppointment.notes}
-                      </Typography>
-                    </>
-                  )}
-                </Grid>
-              </Grid>
-            </Box>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setViewDialog(false)}>Close</Button>
         </DialogActions>
       </Dialog>
     </Container>

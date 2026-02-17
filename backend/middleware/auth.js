@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/user.model');
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
 
 const authenticateToken = async (req, res, next) => {
     try {
@@ -11,7 +12,7 @@ const authenticateToken = async (req, res, next) => {
         }
 
         // Verify token
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const decoded = jwt.verify(token, JWT_SECRET);
         
         // Add user from payload
         const user = await User.findOne({ _id: decoded._id });

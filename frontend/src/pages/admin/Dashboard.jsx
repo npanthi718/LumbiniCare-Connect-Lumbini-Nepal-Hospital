@@ -83,7 +83,7 @@ const formatAddress = (address) => {
 };
 
 const AdminDashboard = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, login } = useAuth();
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
   const [activeTab, setActiveTab] = useState(0);
@@ -97,13 +97,22 @@ const AdminDashboard = () => {
     unreadMessages: 0,
   });
   const [doctors, setDoctors] = useState([]);
+  const [doctorPage, setDoctorPage] = useState(1);
+  const [doctorLimit] = useState(25);
+  const [doctorTotalPages, setDoctorTotalPages] = useState(1);
   const [patients, setPatients] = useState([]);
+  const [patientPage, setPatientPage] = useState(1);
+  const [patientLimit] = useState(25);
+  const [patientTotalPages, setPatientTotalPages] = useState(1);
   const [appointments, setAppointments] = useState({
     all: [],
     today: [],
     upcoming: [],
     past: []
   });
+  const [appointmentPage] = useState(1);
+  const [appointmentLimit] = useState(25);
+  const [, setAppointmentTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
@@ -125,6 +134,8 @@ const AdminDashboard = () => {
   const [resetPassword, setResetPassword] = useState('');
   const [deptList, setDeptList] = useState([]);
   const [usersList, setUsersList] = useState([]);
+  const [lastCreatedDoctorCreds, setLastCreatedDoctorCreds] = useState(null);
+  const [isCreatingDoctor, setIsCreatingDoctor] = useState(false);
   const [doctorForm, setDoctorForm] = useState({
     name: '',
     email: '',
@@ -134,7 +145,7 @@ const AdminDashboard = () => {
     experience: '',
     license: '',
     consultationFee: '',
-    education: [{ degree: '', institute: '', year: '' }],
+    education: [{ degree: '', institution: '', year: '' }],
   });
 
   const calculateUnreadCount = (messages) => {
@@ -153,6 +164,12 @@ const AdminDashboard = () => {
                 value={resetEmail}
                 onChange={(e, val) => setResetEmail(val || '')}
                 onInputChange={(e, val) => setResetEmail(val || '')}
+                openOnFocus={false}
+                filterOptions={(options, state) => {
+                  const input = (state.inputValue || '').toLowerCase();
+                  if (!input) return [];
+                  return options.filter(opt => opt.toLowerCase().includes(input));
+                }}
                 renderInput={(params) => (
                   <TextField {...params} label="Email" fullWidth />
                 )}
@@ -289,10 +306,10 @@ const AdminDashboard = () => {
                       <Grid item xs={12} md={4}>
                         <TextField
                           label="Institute"
-                          value={edu.institute}
+                          value={edu.institution}
                           onChange={(e) => {
                             const education = [...doctorForm.education];
-                            education[idx] = { ...education[idx], institute: e.target.value };
+                            education[idx] = { ...education[idx], institution: e.target.value };
                             setDoctorForm({ ...doctorForm, education });
                           }}
                           fullWidth
@@ -315,7 +332,7 @@ const AdminDashboard = () => {
                           color="error"
                           onClick={() => {
                             const education = doctorForm.education.filter((_, i) => i !== idx);
-                            setDoctorForm({ ...doctorForm, education: education.length ? education : [{ degree: '', institute: '', year: '' }] });
+                            setDoctorForm({ ...doctorForm, education: education.length ? education : [{ degree: '', institution: '', year: '' }] });
                           }}
                         >
                           Remove
@@ -328,7 +345,7 @@ const AdminDashboard = () => {
                     onClick={() => {
                       setDoctorForm({
                         ...doctorForm,
-                        education: [...doctorForm.education, { degree: '', institute: '', year: '' }]
+                      education: [...doctorForm.education, { degree: '', institution: '', year: '' }]
                       });
                     }}
                   >
@@ -339,22 +356,84 @@ const AdminDashboard = () => {
               <Grid item xs={12}>
                 <Button
                   variant="contained"
+                  disabled={isCreatingDoctor}
                   onClick={async () => {
                     try {
+                    console.log('Create Doctor: start');
                       setError(null);
+                    setSuccess(null);
+                    setIsCreatingDoctor(true);
+                      if (!doctorForm.department) {
+                        setError('Please select a department');
+                      setIsCreatingDoctor(false);
+                        return;
+                      }
+                      const emailLower = (doctorForm.email || '').toLowerCase();
+                      if (!emailLower || !emailLower.includes('@')) {
+                        setError('Please enter a valid email');
+                      setIsCreatingDoctor(false);
+                        return;
+                      }
+                      if ((usersList || []).some(u => (u.email || '').toLowerCase() === emailLower)) {
+                        setError('Email already exists');
+                      setIsCreatingDoctor(false);
+                        return;
+                      }
+                      if (!doctorForm.password || doctorForm.password.length < 6) {
+                        setError('Password must be at least 6 characters');
+                      setIsCreatingDoctor(false);
+                        return;
+                      }
+                      if (!doctorForm.specialization?.trim()) {
+                        setError('Specialization is required');
+                      setIsCreatingDoctor(false);
+                        return;
+                      }
+                      if (!doctorForm.license?.trim()) {
+                        setError('License is required');
+                      setIsCreatingDoctor(false);
+                        return;
+                      }
+                      const expNum = Number(doctorForm.experience || 0);
+                      const feeNum = Number(doctorForm.consultationFee || 0);
+                      if (isNaN(expNum) || expNum < 0) {
+                        setError('Experience must be a non-negative number');
+                      setIsCreatingDoctor(false);
+                        return;
+                      }
+                      if (isNaN(feeNum) || feeNum < 0) {
+                        setError('Consultation fee must be a non-negative number');
+                      setIsCreatingDoctor(false);
+                        return;
+                      }
+                      const hasEducation = Array.isArray(doctorForm.education) && doctorForm.education.length > 0;
+                      const firstEdu = hasEducation ? doctorForm.education[0] : null;
+                      if (!firstEdu || !firstEdu.degree?.trim() || !firstEdu.institution?.trim() || !String(firstEdu.year).trim()) {
+                        setError('Please provide at least one education entry (degree, institute, year)');
+                      setIsCreatingDoctor(false);
+                        return;
+                      }
                       const payload = {
                         name: doctorForm.name,
                         email: doctorForm.email,
                         password: doctorForm.password,
                         department: doctorForm.department,
                         specialization: doctorForm.specialization,
-                        experience: Number(doctorForm.experience || 0),
+                        experience: expNum,
                         license: doctorForm.license,
-                        consultationFee: Number(doctorForm.consultationFee || 0),
-                        education: doctorForm.education
+                        consultationFee: feeNum,
+                        education: doctorForm.education.map(e => ({
+                          degree: e.degree,
+                          institution: e.institution,
+                          year: Number(e.year)
+                        }))
                       };
-                      await api.post('/doctors', payload);
-                      setSuccess('Doctor created successfully');
+                    console.log('Create Doctor: submitting payload', payload);
+                    const res = await api.post('/doctors', payload);
+                    console.log('Create Doctor: success', res.data);
+                      setSuccess('Doctor account created. They can login with the entered email and password.');
+                      enqueueSnackbar('Doctor created successfully', { variant: 'success' });
+                      setLastCreatedDoctorCreds({ email: doctorForm.email, password: doctorForm.password });
                       setDoctorForm({
                         name: '',
                         email: '',
@@ -364,16 +443,67 @@ const AdminDashboard = () => {
                         experience: '',
                         license: '',
                         consultationFee: '',
-                        education: [{ degree: '', institute: '', year: '' }],
+                        education: [{ degree: '', institution: '', year: '' }],
                       });
                       await fetchDashboardData();
                     } catch (err) {
-                      setError(err.response?.data?.message || 'Failed to create doctor');
+                      const firstValidation = err.response?.data?.errors?.[0]?.msg;
+                      const msg = firstValidation || err.response?.data?.message || 'Failed to create doctor';
+                      const extra = err.response?.data?.error ? `: ${err.response.data.error}` : '';
+                      setError(`${msg}${extra}`);
+                      enqueueSnackbar(`${msg}${extra}`, { variant: 'error' });
+                    console.error('Create Doctor: error', err.response?.data || err.message);
+                  } finally {
+                    setIsCreatingDoctor(false);
                     }
                   }}
                 >
-                  Create Doctor
+                  {isCreatingDoctor ? 'Creating…' : 'Create Doctor'}
                 </Button>
+                {error && (
+                  <Alert severity="error" sx={{ mt: 2 }} onClose={() => setError(null)}>
+                    {error}
+                  </Alert>
+                )}
+                {success && (
+                  <Alert severity="success" sx={{ mt: 2 }} onClose={() => setSuccess(null)}>
+                    {success}
+                  </Alert>
+                )}
+                {lastCreatedDoctorCreds && (
+                  <Button
+                    sx={{ ml: 2 }}
+                    variant="outlined"
+                    color="primary"
+                    onClick={async () => {
+                      try {
+                        await login(lastCreatedDoctorCreds.email, lastCreatedDoctorCreds.password);
+                        navigate('/doctor/dashboard');
+                      } catch (e) {
+                        enqueueSnackbar('Login as doctor failed', { variant: 'error' });
+                      }
+                    }}
+                  >
+                    Login as Doctor
+                  </Button>
+                )}
+                {lastCreatedDoctorCreds && (
+                  <Button
+                    sx={{ ml: 1 }}
+                    variant="outlined"
+                    onClick={async () => {
+                      try {
+                        const text = `Doctor Credentials\\nEmail: ${lastCreatedDoctorCreds.email}\\nPassword: ${lastCreatedDoctorCreds.password}`;
+                        await navigator.clipboard.writeText(text);
+                        enqueueSnackbar('Credentials copied to clipboard', { variant: 'info' });
+                      } catch {
+                        enqueueSnackbar('Copy failed. Please copy manually.', { variant: 'warning' });
+                      }
+                    }}
+                  >
+                    Copy Credentials
+                  </Button>
+                )}
               </Grid>
             </Grid>
           </CardContent>
@@ -397,33 +527,40 @@ const AdminDashboard = () => {
 
       // Make API calls in parallel
       const [appointmentsRes, doctorsRes, patientsRes, messagesRes] = await Promise.all([
-        api.get('/admin/appointments'),
-        api.get('/admin/doctors'),
-        api.get('/admin/patients'),
+        api.get('/admin/appointments', { params: { page: appointmentPage, limit: appointmentLimit } }),
+        api.get('/admin/doctors', { params: { page: doctorPage, limit: doctorLimit, minimal: true } }),
+        api.get('/admin/patients', { params: { page: patientPage, limit: patientLimit } }),
         api.get('/contact')
       ]);
 
       // Update state with fetched data
+      const appointmentItems = appointmentsRes.data?.items || [];
+      const doctorItems = doctorsRes.data?.items || [];
+      const patientItems = patientsRes.data?.items || [];
+
       setAppointments({
-        today: appointmentsRes.data.filter(app => app.date && isToday(new Date(app.date))),
-        upcoming: appointmentsRes.data.filter(app => app.date && isFuture(new Date(app.date))),
-        completed: appointmentsRes.data.filter(app => app.status === 'completed'),
-        cancelled: appointmentsRes.data.filter(app => app.status === 'cancelled'),
-        all: appointmentsRes.data
+        today: appointmentItems.filter(app => app.date && isToday(new Date(app.date))),
+        upcoming: appointmentItems.filter(app => app.date && isFuture(new Date(app.date))),
+        completed: appointmentItems.filter(app => app.status === 'completed'),
+        cancelled: appointmentItems.filter(app => app.status === 'cancelled'),
+        all: appointmentItems
       });
-      setDoctors(doctorsRes.data);
-      setPatients(patientsRes.data);
+      setDoctors(doctorItems);
+      setPatients(patientItems);
       setMessages(messagesRes.data);
       setUnreadCount(calculateUnreadCount(messagesRes.data));
+      setDoctorTotalPages(doctorsRes.data?.totalPages ?? 1);
+      setPatientTotalPages(patientsRes.data?.totalPages ?? 1);
+      setAppointmentTotalPages(appointmentsRes.data?.totalPages ?? 1);
 
       // Update stats
       setStats({
-        totalDoctors: doctorsRes.data.length,
-        totalPatients: patientsRes.data.length,
-        totalAppointments: appointmentsRes.data.length,
-        completedAppointments: appointmentsRes.data.filter(apt => apt.status === 'completed').length,
-        pendingAppointments: appointmentsRes.data.filter(apt => apt.status === 'pending').length,
-        cancelledAppointments: appointmentsRes.data.filter(apt => apt.status === 'cancelled').length,
+        totalDoctors: doctorsRes.data?.total ?? doctorItems.length,
+        totalPatients: patientsRes.data?.total ?? patientItems.length,
+        totalAppointments: appointmentsRes.data?.total ?? appointmentItems.length,
+        completedAppointments: appointmentItems.filter(apt => apt.status === 'completed').length,
+        pendingAppointments: appointmentItems.filter(apt => apt.status === 'pending').length,
+        cancelledAppointments: appointmentItems.filter(apt => apt.status === 'cancelled').length,
         unreadMessages: calculateUnreadCount(messagesRes.data)
       });
 
@@ -437,7 +574,7 @@ const AdminDashboard = () => {
     } finally {
       setLoading(false);
     }
-  }, [navigate]);
+  }, [navigate, doctorPage, patientPage, appointmentPage, doctorLimit, patientLimit, appointmentLimit]);
 
   const fetchMessages = useCallback(async () => {
     try {
@@ -467,6 +604,21 @@ const AdminDashboard = () => {
     } catch (error) {
       console.error('Error updating message:', error);
       setError('Failed to update message');
+    }
+  };
+
+  const handleReplyMessage = (message) => {
+    try {
+      const subject = `Re: ${message.subject || 'Inquiry'}`;
+      const greeting = message.name ? `Hello ${message.name},\n\n` : '';
+      const body = `${greeting}`;
+      const mailto = `mailto:${encodeURIComponent(message.email || '')}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      window.location.href = mailto;
+      if (enqueueSnackbar) {
+        enqueueSnackbar('Opening email client…', { variant: 'info' });
+      }
+    } catch (e) {
+      setError('Unable to open email client');
     }
   };
 
@@ -526,8 +678,8 @@ const AdminDashboard = () => {
 
   const handleDoctorStatusChange = async (doctorId, newStatus) => {
     try {
-      await api.patch(`/admin/doctors/${doctorId}/status`, {
-        isApproved: newStatus === "active",
+      await api.put(`/doctors/${doctorId}`, {
+        status: newStatus,
       });
       setSuccess(`Doctor status updated to ${newStatus}`);
       fetchDashboardData();
@@ -542,7 +694,7 @@ const AdminDashboard = () => {
       // Update all doctors to active status
       await Promise.all(
         doctors.map((doctor) =>
-          api.patch(`/admin/doctors/${doctor._id}/approval`, {
+          api.patch(`/doctors/${doctor._id}/approval`, {
             isApproved: true,
           })
         )
@@ -556,25 +708,77 @@ const AdminDashboard = () => {
   };
 
   const handleViewAppointment = (appointment) => {
-    // Transform the appointment data to ensure doctor information is properly structured
-    const transformedAppointment = {
-      ...appointment,
-      doctorId: {
-        ...appointment.doctorId,
-        name: appointment.doctorId?.userId?.name || appointment.doctorId?.name || 'Unknown Doctor',
-        email: appointment.doctorId?.userId?.email || appointment.doctorId?.email || 'No email',
-        department: appointment.doctorId?.department || {
-          name: appointment.doctorId?.departmentName || 'Unknown Department'
-        }
-      }
-    };
-    setSelectedAppointment(transformedAppointment);
+    setSelectedAppointment(appointment);
     setViewAppointmentDialog(true);
   };
 
-  const handleCloseAppointmentDialog = () => {
-    setSelectedAppointment(null);
-    setViewAppointmentDialog(false);
+  const handleApproveAppointment = async (appointmentId) => {
+    try {
+      await api.patch(`/admin/appointments/${appointmentId}/status`, {
+        status: "confirmed",
+      });
+      setSuccess("Appointment confirmed successfully");
+      fetchDashboardData();
+    } catch (err) {
+      setError("Failed to approve appointment");
+    }
+  };
+
+  const handleCancelAppointment = async (appointmentId) => {
+    try {
+      await api.patch(`/admin/appointments/${appointmentId}/status`, {
+        status: "cancelled",
+      });
+      setSuccess("Appointment cancelled successfully");
+      fetchDashboardData();
+    } catch (err) {
+      setError("Failed to cancel appointment");
+    }
+  };
+
+  const categorizeAppointments = (appointmentsData) => {
+    const todayAppointments =
+      appointmentsData.today?.length
+        ? appointmentsData.today
+        : appointmentsData.all.filter(app => app.date && isToday(new Date(app.date)));
+
+    const upcomingAppointments =
+      appointmentsData.upcoming?.length
+        ? appointmentsData.upcoming
+        : appointmentsData.all.filter(app => app.date && isFuture(new Date(app.date)));
+
+    const completedAppointments =
+      appointmentsData.completed?.length
+        ? appointmentsData.completed
+        : appointmentsData.all.filter(app => app.status === 'completed');
+
+    const cancelledAppointments =
+      appointmentsData.cancelled?.length
+        ? appointmentsData.cancelled
+        : appointmentsData.all.filter(app => app.status === 'cancelled');
+
+    return {
+      todayAppointments,
+      upcomingAppointments,
+      completedAppointments,
+      cancelledAppointments
+    };
+  };
+
+  const handleConfirmCancel = async () => {
+    if (!selectedAppointment || !cancellationReason.trim()) return;
+    try {
+      await api.patch(`/admin/appointments/${selectedAppointment._id}/status`, {
+        status: "cancelled",
+        reason: cancellationReason,
+      });
+      setSuccess("Appointment cancelled successfully");
+      setOpenCancelDialog(false);
+      setCancellationReason("");
+      fetchDashboardData();
+    } catch (err) {
+      setError("Failed to cancel appointment");
+    }
   };
 
   const handleViewPatient = (patient) => {
@@ -582,319 +786,23 @@ const AdminDashboard = () => {
     setViewPatientDialog(true);
   };
 
-  const handleClosePatientDialog = () => {
-    setSelectedPatient(null);
-    setViewPatientDialog(false);
-    setPatientHistory(null);
-  };
-
-  const handleViewPatientHistory = async (id, isDoctor = false) => {
+  const handleViewPatientHistory = async (patientId, isDoctor = false) => {
     try {
-      setLoading(true);
       setError(null);
-
-      if (isDoctor) {
-        // For doctor history, fetch both appointments and prescriptions
-        const [appointmentsRes, prescriptionsRes] = await Promise.all([
-          api.get(`/admin/doctors/${id}/appointments`),
-          api.get(`/admin/doctors/${id}/prescriptions`)
-        ]);
-
-        const doctorAppointments = appointmentsRes.data || [];
-        const doctorPrescriptions = prescriptionsRes.data || [];
-
-        // Group appointments by patient
-        const appointmentsByDoctor = {};
-        doctorAppointments.forEach(appointment => {
-          const patientId = appointment.patientId?._id || appointment.patientId;
-          if (!patientId) return;
-
-          if (!appointmentsByDoctor[patientId]) {
-            appointmentsByDoctor[patientId] = {
-              doctorInfo: {
-                name: appointment.patientId?.name || appointment.patientId?.userId?.name || 'Unknown Patient',
-                email: appointment.patientId?.email || appointment.patientId?.userId?.email || 'No email'
-              },
-              appointments: []
-            };
-          }
-          appointmentsByDoctor[patientId].appointments.push({
-            ...appointment,
-            doctorName: appointment.doctorId?.name || appointment.doctorId?.userId?.name || 'Unknown Doctor',
-            departmentName: appointment.doctorId?.department?.name || 'Unknown Department',
-            patientName: appointment.patientId?.name || appointment.patientId?.userId?.name || 'Unknown Patient'
-          });
-        });
-
-        // Group prescriptions by patient
-        const prescriptionsByDoctor = {};
-        doctorPrescriptions.forEach(prescription => {
-          const patientId = prescription.patientId?._id || prescription.patientId;
-          if (!patientId) return;
-
-          if (!prescriptionsByDoctor[patientId]) {
-            prescriptionsByDoctor[patientId] = {
-              doctorInfo: {
-                name: prescription.patientId?.name || prescription.patientId?.userId?.name || 'Unknown Patient',
-                email: prescription.patientId?.email || prescription.patientId?.userId?.email || 'No email'
-              },
-              prescriptions: []
-            };
-          }
-          prescriptionsByDoctor[patientId].prescriptions.push({
-            ...prescription,
-            doctorName: prescription.doctorId?.name || prescription.doctorId?.userId?.name || 'Unknown Doctor',
-            departmentName: prescription.doctorId?.department?.name || 'Unknown Department',
-            patientName: prescription.patientId?.name || prescription.patientId?.userId?.name || 'Unknown Patient'
-          });
-        });
-
-        setPatientHistory({
-          appointmentsByDoctor,
-          prescriptionsByDoctor,
-          isDoctor: true
-        });
-        setHistoryDialogOpen(true);
-      } else {
-        // For patient history
-        try {
-          const [appointmentsRes, prescriptionsRes] = await Promise.all([
-            api.get(`/admin/patients/${id}/appointments`),
-            api.get(`/admin/patients/${id}/prescriptions`)
-          ]);
-
-          const appointments = appointmentsRes.data || [];
-          const prescriptions = prescriptionsRes.data || [];
-
-          // Group appointments by doctor
-          const appointmentsByDoctor = {};
-          appointments.forEach(appointment => {
-            const doctorId = appointment.doctorId?._id;
-            if (!doctorId) return;
-
-            if (!appointmentsByDoctor[doctorId]) {
-              appointmentsByDoctor[doctorId] = {
-                doctorInfo: {
-                  name: appointment.doctorId?.name || appointment.doctorId?.userId?.name || 'Unknown Doctor',
-                  department: appointment.doctorId?.department?.name || 'Unknown Department'
-                },
-                appointments: []
-              };
-            }
-            appointmentsByDoctor[doctorId].appointments.push({
-              ...appointment,
-              doctorName: appointment.doctorId?.name || appointment.doctorId?.userId?.name || 'Unknown Doctor',
-              departmentName: appointment.doctorId?.department?.name || 'Unknown Department',
-              patientName: appointment.patientId?.name || 'Unknown Patient'
-            });
-          });
-
-          // Group prescriptions by doctor
-          const prescriptionsByDoctor = {};
-          prescriptions.forEach(prescription => {
-            const doctorId = prescription.doctorId?._id;
-            if (!doctorId) return;
-
-            if (!prescriptionsByDoctor[doctorId]) {
-              prescriptionsByDoctor[doctorId] = {
-                doctorInfo: {
-                  name: prescription.doctorId?.name || prescription.doctorId?.userId?.name || 'Unknown Doctor',
-                  department: prescription.doctorId?.department?.name || 'Unknown Department'
-                },
-                prescriptions: []
-              };
-            }
-            prescriptionsByDoctor[doctorId].prescriptions.push({
-              ...prescription,
-              doctorName: prescription.doctorId?.name || prescription.doctorId?.userId?.name || 'Unknown Doctor',
-              departmentName: prescription.doctorId?.department?.name || 'Unknown Department',
-              patientName: prescription.patientId?.name || 'Unknown Patient'
-            });
-          });
-
-          setPatientHistory({
-            appointmentsByDoctor,
-            prescriptionsByDoctor,
-            isDoctor: false
-          });
-          setHistoryDialogOpen(true);
-
-        } catch (err) {
-          setError('Failed to fetch patient history. Please try again.');
-        }
-      }
+      setPatientHistory(null);
+      
+      const res = await api.get(`/admin/${isDoctor ? 'doctor' : 'patient'}/${patientId}/history`);
+      setPatientHistory(res.data || []);
+      setHistoryDialogOpen(true);
     } catch (err) {
-      setError(`Failed to fetch ${isDoctor ? 'doctor' : 'patient'} history. Please try again.`);
-    } finally {
-      setLoading(false);
+      setError('Failed to load history. Please try again.');
     }
-  };
-
-  const handleViewPrescription = (prescription) => {
-    setSelectedPrescription(prescription);
-    setPrescriptionDialogOpen(true);
-  };
-
-  const handleAppointmentAction = async (appointmentId, action, reason = '') => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      await api.patch(`/admin/appointments/${appointmentId}/status`, {
-        status: action,
-        cancellationReason: reason
-      });
-
-      // Update the appointments list
-      setAppointments(prev => ({
-        ...prev,
-        all: prev.all.map(apt => 
-          apt._id === appointmentId 
-            ? { ...apt, status: action, cancellationReason: reason }
-            : apt
-        )
-      }));
-
-      enqueueSnackbar(
-        `Appointment ${action === 'cancelled' ? 'cancelled' : 'confirmed'} successfully`,
-        { variant: 'success' }
-      );
-
-      // Close dialogs if open
-      setOpenCancelDialog(false);
-      setCancellationReason('');
-      setViewAppointmentDialog(false);
-      
-      // Refresh appointments
-      await fetchDashboardData();
-    } catch (error) {
-      setError(error.response?.data?.message || 'Failed to update appointment');
-      enqueueSnackbar(error.response?.data?.message || 'Failed to update appointment', {
-        variant: 'error'
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleApproveAppointment = (appointmentId) => {
-    handleAppointmentAction(appointmentId, 'confirmed');
-  };
-
-  const handleCancelAppointment = (appointmentId) => {
-    const appointment = appointments.all.find(apt => apt._id === appointmentId);
-    setSelectedAppointment(appointment);
-    setOpenCancelDialog(true);
-  };
-
-  const handleConfirmCancel = async () => {
-    if (!selectedAppointment || !cancellationReason.trim()) {
-      enqueueSnackbar('Please provide a reason for cancellation', { variant: 'error' });
-      return;
-    }
-
-    try {
-      setLoading(true);
-      await api.patch(`/admin/appointments/${selectedAppointment._id}/status`, {
-        status: 'cancelled',
-        cancellationReason: cancellationReason.trim()
-      });
-
-      // Update local state
-      setAppointments(prev => ({
-        ...prev,
-        all: prev.all.map(apt => 
-          apt._id === selectedAppointment._id 
-            ? { ...apt, status: 'cancelled', cancellationReason: cancellationReason.trim() }
-            : apt
-        )
-      }));
-
-      // Show success message
-      enqueueSnackbar('Appointment cancelled successfully', { variant: 'success' });
-
-      // Close all dialogs
-      setOpenCancelDialog(false);
-      setViewAppointmentDialog(false);
-      setCancellationReason('');
-      setSelectedAppointment(null);
-      
-      // Refresh the dashboard data
-      await fetchDashboardData();
-    } catch (error) {
-      enqueueSnackbar(error.response?.data?.message || 'Failed to cancel appointment', { variant: 'error' });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const categorizeAppointments = (appointments) => {
-    // Handle case where appointments might be undefined or null
-    if (!appointments) {
-      return {
-        todayAppointments: [],
-        upcomingAppointments: [],
-        completedAppointments: [],
-        pastAppointments: [],
-        cancelledAppointments: []
-      };
-    }
-
-    // Convert appointments to array if it's not already
-    const appointmentsArray = Array.isArray(appointments) ? appointments : 
-                            appointments.all ? appointments.all : [];
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    return {
-      todayAppointments: appointmentsArray.filter(appointment => {
-        const appointmentDate = new Date(appointment.date);
-        appointmentDate.setHours(0, 0, 0, 0);
-        return appointmentDate.getTime() === today.getTime() && 
-               appointment.status !== 'completed' && 
-               appointment.status !== 'cancelled';
-      }),
-      upcomingAppointments: appointmentsArray.filter(appointment => {
-        const appointmentDate = new Date(appointment.date);
-        appointmentDate.setHours(0, 0, 0, 0);
-        return appointmentDate.getTime() > today.getTime() && 
-               appointment.status !== 'completed' && 
-               appointment.status !== 'cancelled';
-      }),
-      completedAppointments: appointmentsArray.filter(appointment => 
-        appointment.status === 'completed'
-      ),
-      pastAppointments: appointmentsArray.filter(appointment => {
-        const appointmentDate = new Date(appointment.date);
-        appointmentDate.setHours(0, 0, 0, 0);
-        return appointmentDate.getTime() < today.getTime() && 
-               appointment.status !== 'completed' && 
-               appointment.status !== 'cancelled';
-      }),
-      cancelledAppointments: appointmentsArray.filter(appointment => 
-        appointment.status === 'cancelled'
-      )
-    };
-  };
-
-  const handleReplyMessage = (message) => {
-    // Open default email client with pre-filled fields
-    const subject = `Re: ${message.subject}`;
-    const body = `\n\nOriginal message from ${message.name}:\n${message.message}`;
-    const mailtoLink = `mailto:${message.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    window.location.href = mailtoLink;
   };
 
   const renderStats = () => (
     <Grid container spacing={3} sx={{ mb: 4 }}>
       <Grid item xs={12} sm={6} md={3}>
-        <Card 
-          sx={{ cursor: 'pointer' }}
-          onClick={() => {
-            setActiveTab(0);
-          }}
-        >
+        <Card>
           <CardContent>
             <Box sx={{ display: "flex", alignItems: "center", mb: 1 }}>
               <HospitalIcon color="primary" sx={{ mr: 1 }} />
@@ -907,12 +815,7 @@ const AdminDashboard = () => {
         </Card>
       </Grid>
       <Grid item xs={12} sm={6} md={3}>
-        <Card 
-          sx={{ cursor: 'pointer' }}
-          onClick={() => {
-            setActiveTab(1);
-          }}
-        >
+        <Card>
           <CardContent>
             <Box sx={{ display: "flex", alignItems: "center", mb: 1 }}>
               <Person color="secondary" sx={{ mr: 1 }} />
@@ -925,18 +828,13 @@ const AdminDashboard = () => {
         </Card>
       </Grid>
       <Grid item xs={12} sm={6} md={3}>
-        <Card 
-          sx={{ cursor: 'pointer' }}
-          onClick={() => {
-            setActiveTab(2);
-          }}
-        >
+        <Card>
           <CardContent>
             <Box sx={{ display: "flex", alignItems: "center", mb: 1 }}>
-              <EventIcon color="info" sx={{ mr: 1 }} />
+              <EventIcon color="success" sx={{ mr: 1 }} />
               <Typography variant="h6">Total Appointments</Typography>
             </Box>
-            <Typography variant="h3" color="info.main">
+            <Typography variant="h3" color="success.main">
               {stats.totalAppointments}
             </Typography>
           </CardContent>
@@ -947,16 +845,16 @@ const AdminDashboard = () => {
           sx={{ cursor: 'pointer' }}
           onClick={() => {
             setActiveTab(2);
-            const completedSection = document.getElementById('completed-appointments');
-            if (completedSection) {
-              completedSection.scrollIntoView({ behavior: 'smooth' });
+            const el = document.getElementById("completed-appointments");
+            if (el) {
+              setTimeout(() => el.scrollIntoView({ behavior: "smooth" }), 100);
             }
           }}
         >
           <CardContent>
             <Box sx={{ display: "flex", alignItems: "center", mb: 1 }}>
               <CheckCircleIcon color="success" sx={{ mr: 1 }} />
-              <Typography variant="h6">Completed Appointments</Typography>
+              <Typography variant="h6">Completed</Typography>
             </Box>
             <Typography variant="h3" color="success.main">
               {stats.completedAppointments}
@@ -965,22 +863,13 @@ const AdminDashboard = () => {
         </Card>
       </Grid>
       <Grid item xs={12} sm={6} md={3}>
-        <Card 
-          sx={{ cursor: 'pointer' }}
-          onClick={() => {
-            setActiveTab(2);
-            const cancelledSection = document.getElementById('cancelled-appointments');
-            if (cancelledSection) {
-              cancelledSection.scrollIntoView({ behavior: 'smooth' });
-            }
-          }}
-        >
+        <Card>
           <CardContent>
             <Box sx={{ display: "flex", alignItems: "center", mb: 1 }}>
               <CancelIcon color="error" sx={{ mr: 1 }} />
-              <Typography variant="h6">Cancelled Appointments</Typography>
+              <Typography variant="h6">Cancelled</Typography>
             </Box>
-            <Typography variant="h3" color="error">
+            <Typography variant="h3" color="error.main">
               {stats.cancelledAppointments}
             </Typography>
           </CardContent>
@@ -1018,7 +907,7 @@ const AdminDashboard = () => {
         }}
       >
         <Typography variant="h6">Doctors List</Typography>
-        <Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Button
             variant="contained"
             color="success"
@@ -1033,6 +922,23 @@ const AdminDashboard = () => {
             onClick={fetchDashboardData}
           >
             Refresh
+          </Button>
+          <Button
+            variant="outlined"
+            disabled={doctorPage <= 1}
+            onClick={() => setDoctorPage(p => Math.max(1, p - 1))}
+          >
+            Prev
+          </Button>
+          <Typography variant="body2" sx={{ mx: 1 }}>
+            {doctorPage} / {doctorTotalPages}
+          </Typography>
+          <Button
+            variant="outlined"
+            disabled={doctorPage >= doctorTotalPages}
+            onClick={() => setDoctorPage(p => Math.min(doctorTotalPages, p + 1))}
+          >
+            Next
           </Button>
         </Box>
       </Box>
@@ -1051,7 +957,7 @@ const AdminDashboard = () => {
         <TableBody>
           {doctors && doctors.length > 0 ? (
             doctors.map((doctor) => {
-              const user = doctor.userId || {};
+              const user = doctor.user || doctor.userId || {};
               const departmentName =
                 doctor.department?.name ||
                 (typeof doctor.department === "string"
@@ -1125,6 +1031,25 @@ const AdminDashboard = () => {
 
     return (
       <TableContainer component={Paper} sx={{ mt: 2 }}>
+        <Box sx={{ p: 2, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 1 }}>
+          <Button
+            variant="outlined"
+            disabled={patientPage <= 1}
+            onClick={() => setPatientPage(p => Math.max(1, p - 1))}
+          >
+            Prev
+          </Button>
+          <Typography variant="body2" sx={{ mx: 1 }}>
+            {patientPage} / {patientTotalPages}
+          </Typography>
+          <Button
+            variant="outlined"
+            disabled={patientPage >= patientTotalPages}
+            onClick={() => setPatientPage(p => Math.min(patientTotalPages, p + 1))}
+          >
+            Next
+          </Button>
+        </Box>
         <Table>
           <TableHead>
             <TableRow>
@@ -1239,7 +1164,7 @@ const AdminDashboard = () => {
     <Box>
       {/* Today's Appointments */}
       <Typography variant="h6" sx={{ mt: 4, mb: 2 }}>
-        Today's Appointments
+        Today&apos;s Appointments
       </Typography>
       <TableContainer component={Paper} sx={{ mb: 4 }}>
         <Table>
@@ -1488,7 +1413,6 @@ const AdminDashboard = () => {
               <TableCell>Date</TableCell>
               <TableCell>Time</TableCell>
               <TableCell>Status</TableCell>
-              <TableCell>Cancellation Reason</TableCell>
               <TableCell>Actions</TableCell>
             </TableRow>
           </TableHead>
@@ -1537,11 +1461,6 @@ const AdminDashboard = () => {
                     />
                   </TableCell>
                   <TableCell>
-                    <Typography variant="body2" color="error">
-                      {appointment.cancellationReason || 'No reason provided'}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
                     <IconButton
                       size="small"
                       onClick={() => handleViewAppointment(appointment)}
@@ -1554,7 +1473,7 @@ const AdminDashboard = () => {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={8} align="center">
+                <TableCell colSpan={7} align="center">
                   No cancelled appointments found
                 </TableCell>
               </TableRow>
@@ -1563,394 +1482,196 @@ const AdminDashboard = () => {
         </Table>
       </TableContainer>
     </Box>
-  );
-};
+    );
+  };
 
-const renderViewPatientDialog = () => (
-  <Dialog
-    open={viewPatientDialog}
-    onClose={handleClosePatientDialog}
-    maxWidth="md"
-    fullWidth
-  >
-    <DialogTitle>
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <Typography variant="h6">Patient Details</Typography>
-        <IconButton onClick={handleClosePatientDialog}>
-          <CloseIcon />
-        </IconButton>
-      </Box>
-    </DialogTitle>
-    <DialogContent>
-      {selectedPatient && (
-        <Box sx={{ pt: 2 }}>
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={6}>
-              <Typography variant="subtitle1" fontWeight="bold">Personal Information</Typography>
-              <Typography gutterBottom>
-                <strong>Name:</strong> {selectedPatient.name}
-              </Typography>
-              <Typography gutterBottom>
-                <strong>Email:</strong> {selectedPatient.email}
-              </Typography>
-              <Typography gutterBottom>
-                <strong>Phone:</strong> {selectedPatient.phone || 'N/A'}
-              </Typography>
-              <Typography gutterBottom>
-                <strong>Address:</strong> {formatAddress(selectedPatient.address)}
-              </Typography>
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <Typography variant="subtitle1" fontWeight="bold">Medical Information</Typography>
-              <Typography gutterBottom>
-                <strong>Age:</strong> {selectedPatient.age || 'N/A'}
-              </Typography>
-              <Typography gutterBottom>
-                <strong>Blood Group:</strong> {selectedPatient.bloodGroup || 'N/A'}
-              </Typography>
-              <Typography gutterBottom>
-                <strong>Medical History:</strong> {selectedPatient.medicalHistory || 'None'}
-              </Typography>
-            </Grid>
-            {patientHistory && (
-              <Grid item xs={12}>
-                <Typography variant="subtitle1" fontWeight="bold" sx={{ mt: 2 }}>
-                  Appointment History
+  const renderAppointmentDialog = () => (
+    <Dialog
+      open={viewAppointmentDialog}
+      onClose={() => setViewAppointmentDialog(false)}
+      maxWidth="md"
+      fullWidth
+    >
+      <DialogTitle>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <Typography variant="h6">Appointment Details</Typography>
+          <IconButton onClick={() => setViewAppointmentDialog(false)}>
+            <CloseIcon />
+          </IconButton>
+        </Box>
+      </DialogTitle>
+      <DialogContent>
+        {selectedAppointment && (
+          <Box sx={{ pt: 2 }}>
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={6}>
+                <Typography variant="subtitle1" fontWeight="bold">
+                  Patient Information
                 </Typography>
-                <TableContainer component={Paper} sx={{ mt: 1 }}>
-                  <Table size="small">
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Date</TableCell>
-                        <TableCell>Doctor</TableCell>
-                        <TableCell>Type</TableCell>
-                        <TableCell>Status</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {Object.entries(patientHistory.appointmentsByDoctor).map(([doctorId, data]) => (
-                        data.appointments.map((appointment) => (
-                          <TableRow key={appointment._id}>
-                            <TableCell>{format(new Date(appointment.date), 'PPP')}</TableCell>
-                            <TableCell>{data.doctorInfo.name}</TableCell>
-                            <TableCell>{appointment.type}</TableCell>
-                            <TableCell>
-                              <Chip
-                                label={appointment.status}
-                                color={getStatusColor(appointment.status)}
-                                size="small"
-                              />
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-                {Object.entries(patientHistory.prescriptionsByDoctor).map(([doctorId, data]) => (
-                  <>
-                    <Typography variant="subtitle1" fontWeight="bold" sx={{ mt: 3 }}>
-                      Prescription History
-                    </Typography>
-                    <TableContainer component={Paper} sx={{ mt: 1 }}>
-                      <Table size="small">
-                        <TableHead>
-                          <TableRow>
-                            <TableCell>Date</TableCell>
-                            <TableCell>Diagnosis</TableCell>
-                            <TableCell>Medicines</TableCell>
-                            <TableCell>Tests</TableCell>
-                            <TableCell>Actions</TableCell>
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          {data.prescriptions.map((prescription) => (
-                            <TableRow key={prescription._id}>
-                              <TableCell>
-                                {format(new Date(prescription.createdAt), 'PPP')}
-                              </TableCell>
-                              <TableCell>{prescription.diagnosis}</TableCell>
-                              <TableCell>
-                                {prescription.medicines.map((med, idx) => (
-                                  <Typography key={idx} variant="body2">
-                                    {med.name} - {med.dosage}
-                                  </Typography>
-                                ))}
-                              </TableCell>
-                              <TableCell>
-                                {prescription.tests?.join(', ') || '-'}
-                              </TableCell>
-                              <TableCell>
-                                <Button
-                                  variant="outlined"
-                                  size="small"
-                                  onClick={() => handleViewPrescription(prescription)}
-                                >
-                                  View Details
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </TableContainer>
-                  </>
-                ))}
+                <Typography>
+                  Name: {selectedAppointment.patientId?.name || "N/A"}
+                </Typography>
+                <Typography>
+                  Email: {selectedAppointment.patientId?.email || "N/A"}
+                </Typography>
+                <Typography>
+                  Phone: {selectedAppointment.patientId?.phone || "N/A"}
+                </Typography>
               </Grid>
-            )}
-          </Grid>
-        </Box>
-      )}
-    </DialogContent>
-    <DialogActions>
-      <Button onClick={handleClosePatientDialog}>Close</Button>
-    </DialogActions>
-  </Dialog>
-);
+              <Grid item xs={12} md={6}>
+                <Typography variant="subtitle1" fontWeight="bold">
+                  Doctor Information
+                </Typography>
+                <Typography>
+                  Name: {selectedAppointment.doctorId?.name || selectedAppointment.doctorId?.userId?.name || "N/A"}
+                </Typography>
+                <Typography>
+                  Department: {selectedAppointment.doctorId?.department?.name || "N/A"}
+                </Typography>
+              </Grid>
+              <Grid item xs={12}>
+                <Typography variant="subtitle1" fontWeight="bold">
+                  Appointment Details
+                </Typography>
+                <Typography>Date: {format(new Date(selectedAppointment.date), 'PP')}</Typography>
+                <Typography>Time: {selectedAppointment.timeSlot}</Typography>
+                <Typography>Status: {selectedAppointment.status}</Typography>
+              </Grid>
+            </Grid>
+          </Box>
+        )}
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={() => setOpenCancelDialog(true)} color="error">
+          Cancel Appointment
+        </Button>
+        <Button onClick={() => setViewAppointmentDialog(false)} color="primary" variant="contained">
+          Close
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
 
-const renderAppointmentDialog = () => (
-  <Dialog
-    open={viewAppointmentDialog}
-    onClose={handleCloseAppointmentDialog}
-    maxWidth="md"
-    fullWidth
-  >
-    <DialogTitle>
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <Typography variant="h6">Appointment Details</Typography>
-        <IconButton onClick={handleCloseAppointmentDialog}>
-          <CloseIcon />
-        </IconButton>
-      </Box>
-    </DialogTitle>
-    <DialogContent>
-      {selectedAppointment && (
-        <Box sx={{ pt: 2 }}>
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={6}>
-              <Typography variant="subtitle1" fontWeight="bold">Patient Information</Typography>
-              <Typography gutterBottom>
-                <strong>Name:</strong> {selectedAppointment.patientId?.name || "N/A"}
-              </Typography>
-              <Typography gutterBottom>
-                <strong>Email:</strong> {selectedAppointment.patientId?.email || "N/A"}
-              </Typography>
-              <Typography gutterBottom>
-                <strong>Phone:</strong> {selectedAppointment.patientId?.phone || "N/A"}
-              </Typography>
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <Typography variant="subtitle1" fontWeight="bold">Doctor Information</Typography>
-              <Typography gutterBottom>
-                <strong>Name:</strong> {selectedAppointment.doctorId?.userId?.name || selectedAppointment.doctorId?.name || "N/A"}
-              </Typography>
-              <Typography gutterBottom>
-                <strong>Email:</strong> {selectedAppointment.doctorId?.userId?.email || selectedAppointment.doctorId?.email || "N/A"}
-              </Typography>
-              <Typography gutterBottom>
-                <strong>Department:</strong> {selectedAppointment.doctorId?.department?.name || "N/A"}
-              </Typography>
-            </Grid>
-            <Grid item xs={12}>
-              <Typography variant="subtitle1" fontWeight="bold" sx={{ mt: 2 }}>
-                Appointment Details
-              </Typography>
-              <Typography gutterBottom>
-                <strong>Date:</strong> {format(new Date(selectedAppointment.date), "PPP")}
-              </Typography>
-              <Typography gutterBottom>
-                <strong>Time:</strong> {selectedAppointment.timeSlot}
-              </Typography>
-              <Typography gutterBottom>
-                <strong>Type:</strong> {selectedAppointment.type || "General Checkup"}
-              </Typography>
-              <Typography gutterBottom>
-                <strong>Status:</strong> {selectedAppointment.status}
-              </Typography>
-              {selectedAppointment.symptoms && (
-                <Typography gutterBottom>
-                  <strong>Symptoms:</strong> {selectedAppointment.symptoms}
-                </Typography>
-              )}
-              {selectedAppointment.notes && (
-                <Typography gutterBottom>
-                  <strong>Notes:</strong> {selectedAppointment.notes}
-                </Typography>
-              )}
-              {selectedAppointment.status === 'cancelled' && selectedAppointment.cancellationReason && (
-                <Typography gutterBottom color="error">
-                  <strong>Cancellation Reason:</strong> {selectedAppointment.cancellationReason}
-                </Typography>
-              )}
-            </Grid>
-          </Grid>
+  const renderViewPatientDialog = () => (
+    <Dialog
+      open={viewPatientDialog}
+      onClose={() => setViewPatientDialog(false)}
+      maxWidth="md"
+      fullWidth
+    >
+      <DialogTitle>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <Typography variant="h6">Patient Details</Typography>
+          <IconButton onClick={() => setViewPatientDialog(false)}>
+            <CloseIcon />
+          </IconButton>
         </Box>
-      )}
-    </DialogContent>
-    <DialogActions>
-      {selectedAppointment && selectedAppointment.status === 'pending' && (
-        <>
-          <Button 
-            onClick={() => handleApproveAppointment(selectedAppointment._id)}
-            color="success" 
-            variant="contained"
-            startIcon={<CheckCircle />}
-          >
-            Approve
-          </Button>
-          <Button 
-            onClick={() => handleCancelAppointment(selectedAppointment._id)}
-            color="error" 
-            variant="contained"
-            startIcon={<Cancel />}
-          >
-            Deny
-          </Button>
-        </>
-      )}
-      <Button onClick={handleCloseAppointmentDialog}>Close</Button>
-    </DialogActions>
-  </Dialog>
-);
+      </DialogTitle>
+      <DialogContent>
+        {selectedPatient && (
+          <Box sx={{ pt: 2 }}>
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={6}>
+                <Typography variant="subtitle1" fontWeight="bold">
+                  Personal Information
+                </Typography>
+                <Typography>Name: {selectedPatient.name}</Typography>
+                <Typography>Email: {selectedPatient.email}</Typography>
+                <Typography>Phone: {selectedPatient.phone || "N/A"}</Typography>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <Typography variant="subtitle1" fontWeight="bold">
+                  Medical Information
+                </Typography>
+                <Typography>Age: {selectedPatient.age || "N/A"}</Typography>
+                <Typography>
+                  Blood Group: {selectedPatient.bloodGroup || "N/A"}
+                </Typography>
+              </Grid>
+            </Grid>
+          </Box>
+        )}
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={() => setViewPatientDialog(false)}>Close</Button>
+      </DialogActions>
+    </Dialog>
+  );
 
-const renderHistoryDialog = () => (
+  const renderHistoryDialog = () => (
   <Dialog
     open={historyDialogOpen}
     onClose={() => setHistoryDialogOpen(false)}
-    maxWidth="lg"
+    maxWidth="md"
     fullWidth
   >
     <DialogTitle>
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <Typography variant="h6">
-          {patientHistory?.isDoctor ? 'Doctor History' : 'Patient History'}
-        </Typography>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
+        <Typography variant="h6">History Details</Typography>
         <IconButton onClick={() => setHistoryDialogOpen(false)}>
           <CloseIcon />
         </IconButton>
       </Box>
     </DialogTitle>
     <DialogContent>
-      {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
-          <CircularProgress />
-        </Box>
-      ) : patientHistory ? (
-        <Box sx={{ mt: 2 }}>
-          {/* Appointments History */}
-          <Typography variant="h6" gutterBottom>
-            {patientHistory.isDoctor ? 'Patient Appointments' : 'Appointments History'}
-          </Typography>
-          {Object.keys(patientHistory.appointmentsByDoctor).length > 0 ? (
-            Object.entries(patientHistory.appointmentsByDoctor).map(([key, data]) => (
-              <Box key={key} sx={{ mb: 4 }}>
-                <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 'bold', color: 'primary.main' }}>
-                  {patientHistory.isDoctor ? 
-                    `Patient: ${data.doctorInfo.name}` :
-                    `Doctor: ${data.doctorInfo.name} (${data.doctorInfo.department})`
-                  }
-                </Typography>
-                <TableContainer component={Paper}>
-                  <Table size="small">
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Date</TableCell>
-                        <TableCell>Time</TableCell>
-                        <TableCell>Type</TableCell>
-                        <TableCell>Status</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {data.appointments.map((appointment) => (
-                        <TableRow key={appointment._id}>
-                          <TableCell>{format(new Date(appointment.date), "MMM dd, yyyy")}</TableCell>
-                          <TableCell>{appointment.timeSlot}</TableCell>
-                          <TableCell>{appointment.type}</TableCell>
-                          <TableCell>
-                            <Chip
-                              label={appointment.status}
-                              color={getStatusColor(appointment.status)}
-                              size="small"
-                            />
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              </Box>
-            ))
-          ) : (
-            <Paper sx={{ p: 2, mb: 2, backgroundColor: 'grey.50' }}>
-              <Typography align="center" color="textSecondary">
-                No appointments found
-              </Typography>
-            </Paper>
-          )}
-
-          {/* Prescriptions History */}
-          {!patientHistory.isDoctor && (
-            <>
-              <Typography variant="h6" gutterBottom sx={{ mt: 4 }}>
-                Prescriptions History
-              </Typography>
-              {Object.keys(patientHistory.prescriptionsByDoctor).length > 0 ? (
-                Object.entries(patientHistory.prescriptionsByDoctor).map(([key, data]) => (
-                  <Box key={key} sx={{ mb: 4 }}>
-                    <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 'bold', color: 'primary.main' }}>
-                      Doctor: {data.doctorInfo.name} ({data.doctorInfo.department})
-                    </Typography>
-                    <TableContainer component={Paper}>
-                      <Table size="small">
-                        <TableHead>
-                          <TableRow>
-                            <TableCell>Date</TableCell>
-                            <TableCell>Diagnosis</TableCell>
-                            <TableCell>Medicines</TableCell>
-                            <TableCell>Tests</TableCell>
-                            <TableCell>Actions</TableCell>
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          {data.prescriptions.map((prescription) => (
-                            <TableRow key={prescription._id}>
-                              <TableCell>{format(new Date(prescription.createdAt), "MMM dd, yyyy")}</TableCell>
-                              <TableCell>{prescription.diagnosis}</TableCell>
-                              <TableCell>
-                                {prescription.medicines.map((med, idx) => (
-                                  <Typography key={idx} variant="body2">
-                                    {med.name} - {med.dosage}
-                                  </Typography>
-                                ))}
-                              </TableCell>
-                              <TableCell>
-                                {prescription.tests?.join(', ') || '-'}
-                              </TableCell>
-                              <TableCell>
-                                <Button
-                                  variant="outlined"
-                                  size="small"
-                                  onClick={() => handleViewPrescription(prescription)}
-                                >
-                                  View Details
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </TableContainer>
-                  </Box>
-                ))
-              ) : (
-                <Paper sx={{ p: 2, backgroundColor: 'grey.50' }}>
-                  <Typography align="center" color="textSecondary">
-                    No prescriptions found
+      {patientHistory && patientHistory.length > 0 ? (
+        <Box sx={{ pt: 2 }}>
+          <Grid container spacing={2}>
+            {patientHistory.map((history, index) => (
+              <Grid item xs={12} key={index}>
+                <Paper sx={{ p: 2 }}>
+                  <Typography variant="subtitle1" fontWeight="bold">
+                    Appointment #{index + 1}
                   </Typography>
+                  <Typography>
+                    Date: {format(new Date(history.date), 'PP')}
+                  </Typography>
+                  <Typography>
+                    Doctor: {history.doctorId?.name || history.doctorId?.userId?.name || 'N/A'}
+                  </Typography>
+                  <Typography>
+                    Department: {history.doctorId?.department?.name || 'N/A'}
+                  </Typography>
+                  <Typography>Status: {history.status}</Typography>
+                  {history.prescription && (
+                    <Box sx={{ mt: 2 }}>
+                      <Typography variant="subtitle2" fontWeight="bold">
+                        Prescription
+                      </Typography>
+                      <Button
+                        variant="outlined"
+                        startIcon={<VisibilityIcon />}
+                        onClick={() => {
+                          setSelectedPrescription(history.prescription);
+                          setPrescriptionDialogOpen(true);
+                        }}
+                      >
+                        View Prescription
+                      </Button>
+                    </Box>
+                  )}
                 </Paper>
-              )}
-            </>
-          )}
+              </Grid>
+            ))}
+          </Grid>
         </Box>
       ) : (
         <Paper sx={{ p: 2, backgroundColor: 'grey.50' }}>

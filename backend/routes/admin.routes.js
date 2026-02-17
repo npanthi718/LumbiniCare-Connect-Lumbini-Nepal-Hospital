@@ -14,20 +14,14 @@ router.use(isAdmin);
 // Get dashboard stats
 router.get('/stats', async (req, res) => {
   try {
-    const [totalDoctors, totalPatients, appointments] = await Promise.all([
+    const [totalDoctors, totalPatients, totalAppointments, pendingApprovals] = await Promise.all([
       Doctor.countDocuments(),
       User.countDocuments({ role: 'patient' }),
-      Appointment.find()
+      Appointment.countDocuments(),
+      Appointment.countDocuments({ status: 'pending' })
     ]);
 
-    const pendingApprovals = appointments.filter(apt => apt.status === 'pending').length;
-
-    res.json({
-      totalDoctors,
-      totalPatients,
-      totalAppointments: appointments.length,
-      pendingApprovals
-    });
+    res.json({ totalDoctors, totalPatients, totalAppointments, pendingApprovals });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching stats', error: error.message });
   }
@@ -36,17 +30,35 @@ router.get('/stats', async (req, res) => {
 // Get all appointments (admin only)
 router.get('/appointments', async (req, res) => {
   try {
-    const appointments = await Appointment.find()
-      .populate({
-        path: 'doctorId',
-        populate: [
-          { path: 'userId', select: 'name email' },
-          { path: 'department', select: 'name' }
-        ]
-      })
-      .populate('patientId', 'name email')
-      .lean();
-    res.json(appointments);
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.min(parseInt(req.query.limit, 10) || 25, 100);
+    const skip = (page - 1) * limit;
+
+    const [items, total] = await Promise.all([
+      Appointment.find()
+        .populate({
+          path: 'doctorId',
+          populate: [
+            { path: 'userId', select: 'name email' },
+            { path: 'department', select: 'name' }
+          ],
+          select: 'userId department'
+        })
+        .populate('patientId', 'name email')
+        .sort({ date: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      Appointment.countDocuments()
+    ]);
+
+    res.json({
+      items,
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit)
+    });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching appointments', error: error.message });
   }
@@ -55,22 +67,47 @@ router.get('/appointments', async (req, res) => {
 // Get all doctors
 router.get('/doctors', async (req, res) => {
   try {
-    const doctors = await Doctor.find()
-      .populate({
-        path: 'userId',
-        select: 'name email profilePhoto phoneNumber'
-      })
-      .populate('department')
-      .lean()
-      .then(doctors => doctors.map(doctor => ({
-        ...doctor,
-        name: doctor.userId?.name || 'Unknown Doctor',
-        email: doctor.userId?.email || 'No email',
-        department: {
-          name: doctor.department?.name || 'Unknown Department'
-        }
-      })));
-    res.json(doctors);
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.min(parseInt(req.query.limit, 10) || 25, 100);
+    const skip = (page - 1) * limit;
+
+    const [docs, total] = await Promise.all([
+      Doctor.find()
+        .select('department consultationFee userId isApproved status specialization experience')
+        .populate({ path: 'userId', select: 'name email' })
+        .populate({ path: 'department', select: 'name' })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      Doctor.countDocuments()
+    ]);
+
+    const items = docs.map(d => ({
+      _id: d._id,
+      consultationFee: d.consultationFee,
+      isApproved: d.isApproved,
+      status: d.status,
+      specialization: d.specialization,
+      experience: d.experience,
+      user: {
+        _id: d.userId?._id,
+        name: d.userId?.name || 'Unknown Doctor',
+        email: d.userId?.email || 'No email'
+      },
+      department: {
+        _id: d.department?._id,
+        name: d.department?.name || 'Unknown Department'
+      }
+    }));
+
+    res.json({
+      items,
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit)
+    });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching doctors', error: error.message });
   }
@@ -79,8 +116,26 @@ router.get('/doctors', async (req, res) => {
 // Get all patients
 router.get('/patients', async (req, res) => {
   try {
-    const patients = await User.find({ role: 'patient' }).lean();
-    res.json(patients);
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.min(parseInt(req.query.limit, 10) || 25, 100);
+    const skip = (page - 1) * limit;
+
+    const [items, total] = await Promise.all([
+      User.find({ role: 'patient' })
+        .select('name email phone role')
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      User.countDocuments({ role: 'patient' })
+    ]);
+
+    res.json({
+      items,
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit)
+    });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching patients', error: error.message });
   }

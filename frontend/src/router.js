@@ -1,3 +1,4 @@
+import React from 'react';
 import { createBrowserRouter } from 'react-router-dom';
 import AdminDashboard from './pages/admin/Dashboard';
 import ContactUs from './pages/ContactUs';

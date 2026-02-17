@@ -9,7 +9,14 @@ const validateUserUpdate = [
     body('name').optional().trim().notEmpty().withMessage('Name cannot be empty'),
     body('email').optional().isEmail().withMessage('Please enter a valid email'),
     body('phone').optional().trim().notEmpty().withMessage('Phone number cannot be empty'),
-    body('address').optional().isObject().withMessage('Address must be an object')
+    body('age').optional().isInt({ min: 0, max: 150 }).withMessage('Age must be between 0 and 150'),
+    body('gender').optional().isIn(['male', 'female', 'other']).withMessage('Invalid gender'),
+    body('bloodGroup').optional().isIn(['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']).withMessage('Invalid blood group'),
+    body('address').optional().custom((val) => {
+        if (typeof val === 'string') return true;
+        if (typeof val === 'object') return true;
+        return false;
+    }).withMessage('Address must be a string or object')
 ];
 
 // Get all users (admin only)
@@ -43,7 +50,19 @@ router.put('/profile', authenticateToken, validateUserUpdate, async (req, res) =
             return res.status(400).json({ errors: errors.array() });
         }
 
-        const updates = req.body;
+        const updates = { ...req.body };
+        if (typeof updates.address === 'string') {
+            updates.address = { street: updates.address };
+        } else if (updates.address && typeof updates.address === 'object') {
+            updates.address = {
+                street: updates.address.street || '',
+                city: updates.address.city || '',
+                state: updates.address.state || '',
+                zipCode: updates.address.zipCode || '',
+                country: updates.address.country || ''
+            };
+        }
+
         const user = await User.findById(req.user._id);
 
         // Update fields
@@ -54,7 +73,9 @@ router.put('/profile', authenticateToken, validateUserUpdate, async (req, res) =
         });
 
         await user.save();
-        res.json(user);
+        const safeUser = user.toObject();
+        delete safeUser.password;
+        res.json(safeUser);
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
     }

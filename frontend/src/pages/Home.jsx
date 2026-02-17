@@ -67,34 +67,26 @@ const Home = () => {
   const [prescriptions] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const handleNavigation = () => {
-      if (user) {
-        switch (user.role) {
-          case "doctor":
-            navigate("/doctor/dashboard");
-            break;
-          case "admin":
-            navigate("/admin/dashboard");
-            break;
-          case "patient":
-            navigate("/patient/dashboard");
-            break;
-          default:
-            break;
-        }
-      }
-    };
-
-    handleNavigation();
-  }, [user, navigate]);
+  // Remain on Home even when logged in; dashboard link in Navbar handles role-specific navigation
 
   useEffect(() => {
     const fetchData = async () => {
       if (!user) {
         try {
           const response = await api.get("/doctors");
-          setDoctors(response.data);
+          const items = Array.isArray(response.data)
+            ? response.data
+            : (response.data?.items || []);
+          const normalized = items.map((d) => ({
+            id: d._id,
+            name: d.userId?.name || d.user?.name || "Unknown Doctor",
+            image: d.userId?.profilePhoto || d.user?.profilePhoto || "",
+            specialization: d.specialization || d.department?.name || "N/A",
+            description: d.department?.description || "",
+            rating: d.rating || 0,
+            reviewCount: d.totalReviews || 0,
+          }));
+          setDoctors(normalized);
         } catch (error) {
           console.error("Error fetching doctors:", error);
         }
@@ -117,12 +109,10 @@ const Home = () => {
     }
   };
 
-  // If user is logged in, don't render anything as they will be redirected
   if (user) {
     return null;
   }
 
-  // If still loading, show loading state
   if (loading) {
     return (
       <Box

@@ -6,6 +6,7 @@ const { body, validationResult } = require("express-validator");
 const User = require("../models/user.model");
 const Doctor = require("../models/doctor.model");
 const { authenticateToken } = require("../middleware/auth");
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
 
 // Validation middleware
 const validateRegistration = [
@@ -32,6 +33,19 @@ router.post("/register", validateRegistration, async (req, res) => {
 
     const { name, email, password, role, phone, address } = req.body;
 
+    const normalizedAddress =
+      typeof address === "string"
+        ? { street: address }
+        : address && typeof address === "object"
+        ? {
+            street: address.street || "",
+            city: address.city || "",
+            state: address.state || "",
+            zipCode: address.zipCode || "",
+            country: address.country || "",
+          }
+        : undefined;
+
     // Check if user already exists
     let user = await User.findOne({ email });
     if (user) {
@@ -45,13 +59,37 @@ router.post("/register", validateRegistration, async (req, res) => {
       password,
       role,
       phone,
-      address,
+      address: normalizedAddress,
     });
 
-    await user.save();
+    try {
+      await user.save();
+    } catch (saveErr) {
+      if (saveErr.name === "ValidationError") {
+        return res
+          .status(400)
+          .json({ message: "Validation error", errors: saveErr.errors });
+      }
+      throw saveErr;
+    }
 
-    // If role is doctor, create doctor profile
+    // If role is doctor, validate required fields and create doctor profile
     if (role === "doctor") {
+      const requiredDoctorFields = [
+        "specialization",
+        "department",
+        "experience",
+        "education",
+        "license",
+        "consultationFee",
+      ];
+      const missing = requiredDoctorFields.filter((f) => !req.body[f]);
+      if (missing.length) {
+        return res
+          .status(400)
+          .json({ message: "Missing doctor fields", fields: missing });
+      }
+
       const doctor = new Doctor({
         userId: user._id,
         specialization: req.body.specialization,
@@ -67,7 +105,7 @@ router.post("/register", validateRegistration, async (req, res) => {
     // Create token
     const token = jwt.sign(
       { _id: user._id, role: user.role },
-      process.env.JWT_SECRET,
+      JWT_SECRET,
       { expiresIn: "24h" }
     );
 
@@ -137,7 +175,7 @@ router.post("/login", validateLogin, async (req, res) => {
         email: user.email,
         name: user.name
       },
-      process.env.JWT_SECRET,
+      JWT_SECRET,
       { expiresIn: "24h" }
     );
 

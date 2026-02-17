@@ -82,6 +82,7 @@ const Navbar = () => {
     }
 
     const commonItems = [
+      { text: 'Home', path: '/', icon: <Dashboard /> },
       { text: 'Dashboard', path: `/${user.role}/dashboard`, icon: <Dashboard /> },
       { text: 'About Us', path: '/aboutus', icon: <Info /> },
       { text: 'Contact Us', path: '/contact', icon: <ContactSupport /> },

@@ -16,7 +16,6 @@ const ProtectedRoute = ({ children, roles }) => {
   }
 
   if (roles && !roles.includes(user.role)) {
-    // Redirect to appropriate dashboard based on user role
     switch (user.role) {
       case 'admin':
         return <Navigate to="/admin/dashboard" replace />;

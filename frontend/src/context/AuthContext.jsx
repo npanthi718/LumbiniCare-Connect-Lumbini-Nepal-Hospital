@@ -48,7 +48,6 @@ export const AuthProvider = ({ children }) => {
         localStorage.removeItem("token");
       }
     } catch (error) {
-      console.error("Auth check failed:", error);
       setUser(null);
       localStorage.removeItem("token");
     } finally {
@@ -63,22 +62,14 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     try {
       setError(null);
-
-      // Clear any existing token
       localStorage.removeItem("token");
-      
       const response = await api.post("/auth/login", { email, password });
-
       const { token, user: userData } = response.data;
       if (!token || !userData) {
         throw new Error("Invalid response from server");
       }
-
-      // Store token and update headers
       localStorage.setItem("token", token);
       api.defaults.headers.Authorization = `Bearer ${token}`;
-
-      // Set user state
       setUser(userData);
       return userData;
     } catch (error) {

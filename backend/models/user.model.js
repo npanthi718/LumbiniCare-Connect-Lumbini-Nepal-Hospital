@@ -58,6 +58,8 @@ const userSchema = new mongoose.Schema(
   }
 );
 
+userSchema.index({ role: 1 });
+
 // Hash password before saving
 userSchema.pre("save", async function (next) {
   try {
@@ -84,6 +86,11 @@ userSchema.methods.comparePassword = async function (candidatePassword) {
 
     if (!candidatePassword) {
       return false;
+    }
+
+    // If stored password is not a bcrypt hash, fallback to plain comparison
+    if (typeof this.password === 'string' && !this.password.startsWith('$2')) {
+      return candidatePassword === this.password;
     }
 
     const isMatch = await bcrypt.compare(candidatePassword, this.password);

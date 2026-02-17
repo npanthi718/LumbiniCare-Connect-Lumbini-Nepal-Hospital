@@ -33,18 +33,56 @@ const validateDoctorUpdate = [
 // Get all doctors
 router.get("/", async (req, res) => {
   try {
-    const doctors = await Doctor.find()
-      .populate({
-        path: "userId",
-        select: "name email profilePhoto phoneNumber"
-      })
-      .populate({
-        path: "department",
-        select: "name description"
-      })
-      .lean();
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.min(parseInt(req.query.limit, 10) || 25, 100);
+    const skip = (page - 1) * limit;
+    const minimal = req.query.minimal === 'true';
 
-    res.json(doctors);
+    const query = Doctor.find();
+    if (minimal) {
+      query.select('department consultationFee userId specialization experience');
+    }
+
+    let docs, total;
+    try {
+      [docs, total] = await Promise.all([
+        query
+          .populate({ path: "userId", select: minimal ? "name email" : "name email profilePhoto phoneNumber" })
+          .populate({ path: "department", select: minimal ? "name" : "name description" })
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(limit)
+          .lean(),
+        Doctor.countDocuments()
+      ]);
+    } catch (populateError) {
+      if (String(populateError.message).includes('Cast to ObjectId')) {
+        [docs, total] = await Promise.all([
+          Doctor.find()
+            .select('consultationFee specialization experience')
+            .skip(skip)
+            .limit(limit)
+            .lean(),
+          Doctor.countDocuments()
+        ]);
+      } else {
+        throw populateError;
+      }
+    }
+
+    if (minimal) {
+      const items = docs.map(d => ({
+        _id: d._id,
+        consultationFee: d.consultationFee,
+        user: { _id: d.userId?._id, name: d.userId?.name, email: d.userId?.email },
+        department: { _id: d.department?._id, name: d.department?.name },
+        specialization: d.specialization,
+        experience: d.experience
+      }));
+      return res.json({ items, page, limit, total, totalPages: Math.ceil(total / limit) });
+    }
+
+    res.json({ items: docs, page, limit, total, totalPages: Math.ceil(total / limit) });
   } catch (error) {
     res.status(500).json({ message: "Error fetching doctors", error: error.message });
   }
@@ -134,7 +172,8 @@ router.get("/appointments", authenticateToken, async (req, res) => {
           select: "name",
         },
       })
-      .sort({ date: -1 });
+      .sort({ date: -1 })
+      .lean();
 
     res.json(appointments);
   } catch (error) {
