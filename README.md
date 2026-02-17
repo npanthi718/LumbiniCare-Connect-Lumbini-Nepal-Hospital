@@ -89,10 +89,13 @@ The frontend is built with **React.js**, offering a responsive and user-friendly
 
 #### 📦 **Frontend Dependencies**
 
-- **React.js**: Frontend library.
-- **Axios**: HTTP client for API requests.
-- **React Router**: Routing for single-page applications.
-- **Bootstrap**: Styling and responsive design.
+- **React 18**: Modern SPA framework.
+- **MUI**: Component library for a polished UI.
+- **Axios**: HTTP client with interceptors.
+- **React Router v6**: Declarative routing.
+- **Vite**: Fast dev server and build tool.
+- **notistack**: Snackbars for user feedback.
+- **date-fns**: Date utilities.
 
 ---
 
@@ -129,7 +132,7 @@ The frontend is built with **React.js**, offering a responsive and user-friendly
 
    - Start the backend server:
      ```bash
-     npm start
+     npm run dev
      ```
 
 3. **Frontend Setup**:
@@ -141,12 +144,12 @@ The frontend is built with **React.js**, offering a responsive and user-friendly
 
    - Start the frontend development server:
      ```bash
-     npm start
+     npm run dev
      ```
 
 4. **Access the Application**:
-   - Frontend: `http://localhost:3000`
-   - Backend: `http://localhost:5000`
+   - Frontend (Vite): `http://localhost:5173`
+   - Backend (Express): `http://localhost:5000`
 
 ---
 
@@ -161,15 +164,17 @@ The frontend is built with **React.js**, offering a responsive and user-friendly
 ### **Frontend**
 
 - Create new components in the `src/components/` directory.
-- Use `Axios` for API integration.
-- Manage state using React hooks or context.
+- API base URL defaults to `/api` and proxies to backend port `5000` in dev.
+- Manage auth via `AuthContext` and interceptors in `src/services/api.js`.
+- Role-based routes are protected using `components/ProtectedRoute.jsx`.
 
 ---
 
 ## 🧪 **Testing**
 
-- **Backend**: Use `Jest` and `Supertest` for unit and integration tests.
-- **Frontend**: Use `React Testing Library` for component testing.
+- Add tests as needed. Suggested:
+- Backend: Jest + Supertest
+- Frontend: React Testing Library
 
 ---
 
@@ -177,9 +182,8 @@ The frontend is built with **React.js**, offering a responsive and user-friendly
 
 Watch the full demo of the **Hospital Management System** showcasing all features and functionalities:
 
-[![Watch the Demo](https://drive.google.com/file/d/1qe58qWPFIisWnKE3ICuby9QM5zIL5yTv/view?usp=sharing)
-
-Click the link above to view the video.
+Watch the demo on Google Drive:  
+https://drive.google.com/file/d/1qe58qWPFIisWnKE3ICuby9QM5zIL5yTv/view?usp=sharing
 
 ---
 
@@ -207,3 +211,34 @@ For any inquiries or support, please contact us at **npanthi718@gmail.com**.
 ---
 
 ### 🌟 **Star this repository if you found it helpful!**
+
+---
+
+## 🔐 Authentication & Roles
+
+- Roles: `admin`, `doctor`, `patient`
+- Protected routes ensure only authorized roles can access dashboards and profiles:
+  - `/admin/dashboard`, `/admin/profile`
+  - `/doctor/dashboard`, `/doctor/profile`
+  - `/patient/dashboard`, `/patient/profile`
+- The Home page remains the public landing. Use the Navbar’s Dashboard link to jump to your role’s dashboard after login.
+
+## 👨‍⚕️ Admin: Creating Doctors
+
+- Admin can create doctor accounts from Admin → Admin Actions.
+- Required fields: name, unique email, password (≥ 6 chars), department, specialization, license, experience, consultation fee.
+- Education entries need `degree`, `institution`, and `year` (number).
+- Backend defaults availability to all 7 days to prevent validation failures.
+- After creation, the doctor appears at the top of the Admin Doctors list (sorted newest-first).
+
+## ⚙️ Environment & Proxy
+
+- Frontend dev server runs on `5173` with Vite.
+- API requests default to `/api` and are proxied to `http://localhost:5000` via `vite.config.mjs`.
+- Optional: set `VITE_API_BASE` to override base URL (e.g., when deploying).
+
+## 🧰 Troubleshooting
+
+- If you see `Unchecked runtime.lastError: The message port closed…` in console, it’s likely a browser extension log; the app logs its own create/update messages separately.
+- If API calls return 401, you’ll be redirected to `/login`. Ensure your token is valid.
+- Use the Refresh button in Admin → Doctors to reload the latest list.
