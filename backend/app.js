@@ -9,9 +9,9 @@ const app = express();
 
 // CORS Configuration
 const corsOptions = {
-  origin: 'http://localhost:3000', // Replace with your frontend URL
+  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 };
 
@@ -67,6 +67,53 @@ app.use('/api/prescriptions', prescriptionRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/departments', departmentRoutes);
 app.use('/api/contact', contactRoutes);
+
+app.get('/api', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    base: '/api',
+    endpoints: [
+      '/api/auth',
+      '/api/users',
+      '/api/doctors',
+      '/api/patients',
+      '/api/appointments',
+      '/api/prescriptions',
+      '/api/admin',
+      '/api/departments',
+      '/api/contact'
+    ],
+    timestamp: new Date().toISOString()
+  });
+});
+
+app.get('/', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    service: 'Hospital Management System API',
+    endpoints: [
+      '/api/auth',
+      '/api/users',
+      '/api/doctors',
+      '/api/patients',
+      '/api/appointments',
+      '/api/prescriptions',
+      '/api/admin',
+      '/api/departments',
+      '/api/contact'
+    ],
+    health: '/health',
+    timestamp: new Date().toISOString()
+  });
+});
+
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'healthy',
+    mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+    timestamp: new Date().toISOString()
+  });
+});
 
 // Error handling middleware
 app.use((err, req, res, next) => {
