@@ -8,10 +8,8 @@ import {
   Paper,
   Grid,
   Alert,
-  Divider,
   Tab,
   Tabs,
-  Chip,
   MenuItem,
   FormControl,
   InputLabel,
@@ -180,18 +178,7 @@ function Profile() {
     }
   };
 
-  const getRoleColor = (role) => {
-    switch (role.toLowerCase()) {
-      case 'admin':
-        return 'error';
-      case 'doctor':
-        return 'primary';
-      case 'patient':
-        return 'success';
-      default:
-        return 'default';
-    }
-  };
+  
 
   return (
     <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>

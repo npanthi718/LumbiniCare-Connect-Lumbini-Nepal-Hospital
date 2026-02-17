@@ -267,6 +267,7 @@ const AboutUs = () => {
                       sx={{ width: 120, height: 120, mx: 'auto', mb: 2 }}
                       alt={member.name}
                       src={member.image}
+                      imgProps={{ loading: 'lazy', decoding: 'async' }}
                     />
                     <Typography variant="h6" gutterBottom>
                       {member.name}

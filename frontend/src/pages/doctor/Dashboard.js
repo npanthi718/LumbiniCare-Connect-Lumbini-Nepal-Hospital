@@ -59,17 +59,20 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    // Log complete request details for debugging
-    console.log('Request:', {
-      url: `${config.baseURL}${config.url}`,
-      method: config.method,
-      headers: config.headers,
-      data: config.data
-    });
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('Request:', {
+        url: `${config.baseURL}${config.url}`,
+        method: config.method,
+        headers: config.headers,
+        data: config.data
+      });
+    }
     return config;
   },
   (error) => {
-    console.error('Request error:', error);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('Request error:', error);
+    }
     return Promise.reject(error);
   }
 );
@@ -77,20 +80,24 @@ api.interceptors.request.use(
 // Add response interceptor for better error handling
 api.interceptors.response.use(
   (response) => {
-    console.log('Response:', {
-      url: response.config.url,
-      status: response.status,
-      data: response.data
-    });
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('Response:', {
+        url: response.config.url,
+        status: response.status,
+        data: response.data
+      });
+    }
     return response;
   },
   (error) => {
-    console.error('API Error:', {
-      url: error.config?.url,
-      status: error.response?.status,
-      message: error.response?.data?.message || error.message,
-      data: error.response?.data
-    });
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('API Error:', {
+        url: error.config?.url,
+        status: error.response?.status,
+        message: error.response?.data?.message || error.message,
+        data: error.response?.data
+      });
+    }
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
       window.location.href = '/login';

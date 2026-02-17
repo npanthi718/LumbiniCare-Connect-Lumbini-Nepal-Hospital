@@ -5,6 +5,12 @@ const Department = require('../models/department.model');
 const Doctor = require('../models/doctor.model');
 const { authenticateToken, isAdmin } = require('../middleware/auth');
 
+// Simple cache middleware for public, read-only endpoints
+const setCache = (seconds) => (req, res, next) => {
+    res.set('Cache-Control', `public, max-age=${seconds}, s-maxage=${seconds}, stale-while-revalidate=${seconds}`);
+    next();
+};
+
 // Validation middleware
 const validateDepartment = [
     body('name').trim().notEmpty().withMessage('Department name is required'),
@@ -16,7 +22,7 @@ const validateDepartment = [
 ];
 
 // Get all departments (public)
-router.get('/', async (req, res) => {
+router.get('/', setCache(60), async (req, res) => {
     try {
         console.log('Fetching all departments...');
         const departments = await Department.find({ status: 'active' })
@@ -35,7 +41,7 @@ router.get('/', async (req, res) => {
 });
 
 // Get department by ID with full details
-router.get('/:id', async (req, res) => {
+router.get('/:id', setCache(60), async (req, res) => {
     try {
         const department = await Department.findById(req.params.id)
             .select('-__v')

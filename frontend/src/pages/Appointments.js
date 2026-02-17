@@ -29,13 +29,12 @@ import {
   MenuItem,
   Avatar,
 } from "@mui/material";
-import { Search as SearchIcon, Close as CloseIcon } from "@mui/icons-material";
+import { Close as CloseIcon } from "@mui/icons-material";
 import { useLocation, useNavigate } from "react-router-dom";
 import api from "../services/api";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
-import { TimePicker } from "@mui/x-date-pickers/TimePicker";
 import { useAuth } from "../context/AuthContext";
 import { format, parse } from "date-fns";
 
@@ -46,15 +45,19 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    console.log("Request config:", {
-      url: config.url,
-      method: config.method,
-      headers: config.headers,
-    });
+    if (process.env.NODE_ENV !== 'production') {
+      console.log("Request config:", {
+        url: config.url,
+        method: config.method,
+        headers: config.headers,
+      });
+    }
     return config;
   },
   (error) => {
-    console.error("Request interceptor error:", error);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error("Request interceptor error:", error);
+    }
     return Promise.reject(error);
   }
 );
@@ -62,17 +65,23 @@ api.interceptors.request.use(
 // Add response interceptor for better error handling
 api.interceptors.response.use(
   (response) => {
-    console.log("Response:", {
-      url: response.config.url,
-      status: response.status,
-      data: response.data,
-    });
+    if (process.env.NODE_ENV !== 'production') {
+      console.log("Response:", {
+        url: response.config.url,
+        status: response.status,
+        data: response.data,
+      });
+    }
     return response;
   },
   (error) => {
-    console.error("API Error Response:", error.response?.data);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error("API Error Response:", error.response?.data);
+    }
     if (error.response?.status === 401) {
-      console.log("Unauthorized access, redirecting to login...");
+      if (process.env.NODE_ENV !== 'production') {
+        console.log("Unauthorized access, redirecting to login...");
+      }
       localStorage.removeItem("token");
       window.location.href = "/login";
     }
@@ -85,7 +94,7 @@ const Appointments = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [appointments, setAppointments] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [openDialog, setOpenDialog] = useState(false);
@@ -109,7 +118,7 @@ const Appointments = () => {
   const [timeSlotMessage, setTimeSlotMessage] = useState('');
 
   // Get rebooking info from location state
-  const { rebookData, isRebooking: isRebookingFromState, previousAppointment } = location.state || {};
+  const { rebookData, isRebooking: isRebookingFromState } = location.state || {};
 
   useEffect(() => {
     const doctorId = location.state?.doctorId;
@@ -353,15 +362,7 @@ const Appointments = () => {
     }
   };
 
-  const handleCancelAppointment = async (appointmentId) => {
-    try {
-      await api.put(`/appointments/${appointmentId}/cancel`, {});
-      setSuccess("Appointment cancelled successfully");
-      fetchAppointments();
-    } catch (err) {
-      setError("Failed to cancel appointment");
-    }
-  };
+  
 
   const getStatusColor = (status) => {
     switch (status) {

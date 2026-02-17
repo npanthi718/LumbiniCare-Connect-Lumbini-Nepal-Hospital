@@ -40,13 +40,14 @@ router.get('/appointments', authenticateToken, async (req, res) => {
         ],
         select: 'userId department specialization'
       })
-      .sort({ date: -1 });
+      .sort({ date: -1 })
+      .lean();
 
     // Transform the data to match the frontend expectations
     const transformedAppointments = appointments.map(appointment => {
       const doctor = appointment.doctorId;
       return {
-        ...appointment.toObject(),
+        ...appointment,
         doctorId: {
           ...doctor,
           name: doctor?.userId?.name || 'Doctor Not Available',
@@ -92,7 +93,8 @@ router.get('/prescriptions', authenticateToken, async (req, res) => {
           { path: 'department', select: 'name' }
         ]
       })
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
 
     console.log(`Found ${prescriptions.length} prescriptions for patient ${req.user._id}`);
     res.json(prescriptions);

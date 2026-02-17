@@ -63,8 +63,8 @@ const Home = () => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState(0);
   const [doctors, setDoctors] = useState([]);
-  const [userAppointments, setUserAppointments] = useState([]);
-  const [prescriptions, setPrescriptions] = useState([]);
+  const [userAppointments] = useState([]);
+  const [prescriptions] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -501,6 +501,8 @@ const Home = () => {
                   borderRadius: 10,
                   boxShadow: 5,
                 }}
+                loading="lazy"
+                decoding="async"
                 onError={(e) => {
                   e.target.src =
                     "https://source.unsplash.com/800x600/?hospital";

@@ -50,17 +50,20 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    // Log request details for debugging
-    console.log('Request:', {
-      url: config.url,
-      method: config.method,
-      data: config.data,
-      headers: config.headers
-    });
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('Request:', {
+        url: config.url,
+        method: config.method,
+        data: config.data,
+        headers: config.headers
+      });
+    }
     return config;
   },
   (error) => {
-    console.error('Request error:', error);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('Request error:', error);
+    }
     return Promise.reject(error);
   }
 );
@@ -68,22 +71,24 @@ api.interceptors.request.use(
 // Add response interceptor for better error handling
 api.interceptors.response.use(
   (response) => {
-    // Log successful response
-    console.log('Response:', {
-      url: response.config.url,
-      status: response.status,
-      data: response.data
-    });
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('Response:', {
+        url: response.config.url,
+        status: response.status,
+        data: response.data
+      });
+    }
     return response;
   },
   (error) => {
-    // Log error response
-    console.error('API Error:', {
-      url: error.config?.url,
-      status: error.response?.status,
-      data: error.response?.data,
-      message: error.message
-    });
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('API Error:', {
+        url: error.config?.url,
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message
+      });
+    }
     
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
@@ -118,10 +123,10 @@ const Dashboard = () => {
         }
 
         // Fetch appointments with proper population
-        const appointmentsRes = await api.get('/api/patients/appointments');
+        const appointmentsRes = await api.get('/patients/appointments');
 
         // Fetch prescriptions with proper endpoint
-        const prescriptionsRes = await api.get('/api/patients/prescriptions');
+        const prescriptionsRes = await api.get('/patients/prescriptions');
 
         console.log('Appointments data:', appointmentsRes.data);
         console.log('Prescriptions data:', prescriptionsRes.data);
@@ -208,7 +213,7 @@ const Dashboard = () => {
 
   const fetchAppointments = async () => {
     try {
-      const appointmentsRes = await api.get('/api/patients/appointments');
+      const appointmentsRes = await api.get('/patients/appointments');
       setAppointments(appointmentsRes.data);
     } catch (error) {
       console.error('Error fetching appointments:', error);

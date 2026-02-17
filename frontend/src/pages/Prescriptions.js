@@ -17,22 +17,12 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Chip,
   Alert,
   Divider,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemIcon,
   CircularProgress,
 } from '@mui/material';
 import {
   Close as CloseIcon,
-  LocalPharmacy as PharmacyIcon,
-  AccessTime as TimeIcon,
-  Person as PersonIcon,
-  Description as DescriptionIcon,
-  Warning as WarningIcon,
 } from '@mui/icons-material';
 import api from '../services/api';
 import { format } from 'date-fns';
@@ -173,7 +163,7 @@ const Prescriptions = () => {
   const fetchPrescriptions = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/patient/prescriptions');
+      const response = await api.get('/patients/prescriptions');
       setPrescriptions(response.data);
     } catch (error) {
       console.error('Error fetching prescriptions:', error);
@@ -193,18 +183,7 @@ const Prescriptions = () => {
     setSelectedPrescription(null);
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'active':
-        return 'success';
-      case 'completed':
-        return 'primary';
-      case 'cancelled':
-        return 'error';
-      default:
-        return 'default';
-    }
-  };
+  
 
   if (loading) {
     return (

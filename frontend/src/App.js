@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { RouterProvider } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -8,20 +8,20 @@ import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 
 // Import pages
-import Home from './pages/Home';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import Profile from './pages/Profile';
-import Doctors from './pages/Doctors';
-import Appointments from './pages/Appointments';
-import Prescriptions from './pages/Prescriptions';
-import Departments from './pages/Departments';
-import AdminDashboard from './pages/admin/Dashboard';
-import DoctorDashboard from './pages/doctor/Dashboard';
-import PatientDashboard from './pages/patient/Dashboard';
-import NotFound from './pages/NotFound';
-import AboutUs from './pages/AboutUs';
-import ContactUs from './pages/ContactUs';
+const Home = lazy(() => import('./pages/Home'));
+const Login = lazy(() => import('./pages/Login'));
+const Register = lazy(() => import('./pages/Register'));
+const Profile = lazy(() => import('./pages/Profile'));
+const Doctors = lazy(() => import('./pages/Doctors'));
+const Appointments = lazy(() => import('./pages/Appointments'));
+const Prescriptions = lazy(() => import('./pages/Prescriptions'));
+const Departments = lazy(() => import('./pages/Departments'));
+const AdminDashboard = lazy(() => import('./pages/admin/Dashboard'));
+const DoctorDashboard = lazy(() => import('./pages/doctor/Dashboard'));
+const PatientDashboard = lazy(() => import('./pages/patient/Dashboard'));
+const NotFound = lazy(() => import('./pages/NotFound'));
+const AboutUs = lazy(() => import('./pages/AboutUs'));
+const ContactUs = lazy(() => import('./pages/ContactUs'));
 
 // Create theme
 const theme = createTheme({
@@ -189,7 +189,9 @@ function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <AuthProvider>
-        <RouterProvider router={router} />
+        <Suspense fallback={<div>Loading...</div>}>
+          <RouterProvider router={router} />
+        </Suspense>
       </AuthProvider>
     </ThemeProvider>
   );

@@ -8,7 +8,6 @@ import {
   CardContent,
   CardActions,
   Button,
-  Chip,
   List,
   ListItem,
   ListItemIcon,
@@ -19,13 +18,11 @@ import {
 } from '@mui/material';
 import {
   LocalHospital,
-  People,
-  AccessTime,
   MedicalServices,
   Schedule,
   Business,
 } from '@mui/icons-material';
-import axios from 'axios';
+import api from '../services/api';
 import { useNavigate } from 'react-router-dom';
 
 const Departments = () => {
@@ -38,7 +35,7 @@ const Departments = () => {
     const fetchDepartments = async () => {
       try {
         setLoading(true);
-        const response = await axios.get('/api/departments');
+        const response = await api.get('/departments');
         if (response.data && Array.isArray(response.data)) {
           setDepartments(response.data);
         } else {

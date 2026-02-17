@@ -3,29 +3,43 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const morgan = require('morgan');
+const helmet = require('helmet');
+const compression = require('compression');
 require('dotenv').config();
 
 const app = express();
 
 // CORS Configuration
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || process.env.FRONTEND_URL || 'http://localhost:3000')
+  .split(',')
+  .map(o => o.trim());
+
 const corsOptions = {
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error('Not allowed by CORS'));
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 };
 
 app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
+app.use(helmet());
+app.use(compression());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(morgan('dev'));
 
-// Add this middleware to log requests
-app.use((req, res, next) => {
-  console.log(`${req.method} ${req.url}`);
-  console.log('Headers:', req.headers);
-  next();
-});
+if (process.env.NODE_ENV !== 'production') {
+  app.use(morgan('dev'));
+  app.use((req, res, next) => {
+    console.log(`${req.method} ${req.url}`);
+    console.log('Headers:', req.headers);
+    next();
+  });
+}
 
 // Authentication middleware
 app.use((req, res, next) => {
@@ -122,12 +136,7 @@ app.use((err, req, res, next) => {
 });
 
 // Connect to MongoDB
-const MONGODB_URI = process.env.MONGO_URI;
-
-if (!MONGODB_URI) {
-  console.error('MONGO_URI is not defined in .env file');
-  process.exit(1);
-}
+const MONGODB_URI = process.env.MONGO_URI || process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/hms';
 
 // MongoDB connection options
 const mongooseOptions = {
@@ -170,11 +179,27 @@ const connectWithRetry = async () => {
     console.log('Database:', MONGODB_URI.split('/').pop().split('?')[0]);
     console.log('=================================');
     
-    // Start the server only after successful database connection
-    const port = process.env.PORT || 5000;
-    app.listen(port, () => {
-      console.log(`Server is running on port ${port}`);
-    });
+    const basePort = parseInt(process.env.PORT, 10) || 5000;
+    const startServer = (p) => {
+      try {
+        const server = app.listen(p, () => {
+          console.log(`Server is running on port ${p}`);
+        });
+        server.on('error', (err) => {
+          if (err.code === 'EADDRINUSE') {
+            console.log(`Port ${p} in use, trying ${p + 1}...`);
+            startServer(p + 1);
+          } else {
+            console.error('Server start error:', err);
+            process.exit(1);
+          }
+        });
+      } catch (err) {
+        console.error('Server start error:', err);
+        process.exit(1);
+      }
+    };
+    startServer(basePort);
   } catch (error) {
     console.error('Failed to connect to MongoDB:', error.message);
     console.log('Retrying connection in 5 seconds...');

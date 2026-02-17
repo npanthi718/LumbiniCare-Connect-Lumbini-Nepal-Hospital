@@ -6,7 +6,6 @@ import {
   Grid,
   Card,
   CardContent,
-  CardMedia,
   CardActions,
   Button,
   TextField,
@@ -21,7 +20,6 @@ import {
   DialogContent,
   DialogActions,
   IconButton,
-  useTheme,
   CircularProgress,
   Alert,
   List,
@@ -32,23 +30,16 @@ import {
 } from "@mui/material";
 import {
   Search as SearchIcon,
-  FilterList as FilterIcon,
   Close as CloseIcon,
-  LocalHospital,
   School,
   Language,
-  Star,
   Schedule,
-  Phone,
-  Email,
   EmojiEvents,
-  AccessTime,
 } from "@mui/icons-material";
 import api from "../services/api";
 import { useNavigate, useLocation } from "react-router-dom";
 
 const Doctors = () => {
-  const theme = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const [doctors, setDoctors] = useState([]);
@@ -311,6 +302,8 @@ const Doctors = () => {
                     }}
                     src={doctor.profilePhoto || defaultDoctorImage}
                     alt={doctor.name || "Doctor"}
+                    loading="lazy"
+                    decoding="async"
                     onError={(e) => {
                       e.target.src = defaultDoctorImage;
                     }}
@@ -431,6 +424,8 @@ const Doctors = () => {
                       src={selectedDoctor.profilePhoto || defaultDoctorImage}
                       alt={selectedDoctor.name}
                       style={{ width: "100%", borderRadius: "8px" }}
+                      loading="lazy"
+                      decoding="async"
                     />
                     <Box sx={{ mt: 2 }}>
                       <Rating

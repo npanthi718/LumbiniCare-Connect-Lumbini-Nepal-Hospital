@@ -49,7 +49,7 @@ const Register = () => {
     }
 
     try {
-      const response = await api.post('/auth/register', formData);
+      await api.post('/auth/register', formData);
       setSuccess('Registration successful! Please login.');
       setTimeout(() => {
         navigate('/login');
