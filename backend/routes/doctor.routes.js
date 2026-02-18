@@ -330,7 +330,7 @@ router.get("/:id", async (req, res) => {
     const doctor = await Doctor.findById(req.params.id)
       .populate({
         path: "userId",
-        select: "name email profilePhoto phoneNumber"
+        select: "name email profilePhoto phone"
       })
       .populate({
         path: "department",
@@ -436,6 +436,23 @@ router.put("/me/profile", authenticateToken, async (req, res) => {
       if (user) {
         if (req.body.user.name) user.name = req.body.user.name;
         if (req.body.user.email) user.email = req.body.user.email;
+        if (req.body.user.phone !== undefined) user.phone = req.body.user.phone;
+        if (req.body.user.age !== undefined) user.age = req.body.user.age;
+        if (req.body.user.gender) user.gender = req.body.user.gender;
+        if (req.body.user.bloodGroup) user.bloodGroup = req.body.user.bloodGroup;
+        if (req.body.user.address) {
+          if (typeof req.body.user.address === 'string') {
+            user.address = { street: req.body.user.address };
+          } else if (typeof req.body.user.address === 'object') {
+            user.address = {
+              street: req.body.user.address.street || '',
+              city: req.body.user.address.city || '',
+              state: req.body.user.address.state || '',
+              zipCode: req.body.user.address.zipCode || '',
+              country: req.body.user.address.country || ''
+            };
+          }
+        }
         await user.save();
       }
     }

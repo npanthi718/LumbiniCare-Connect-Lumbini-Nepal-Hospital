@@ -63,6 +63,7 @@ import api from "../../services/api";
 import { format, isToday, isFuture } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { useSnackbar } from "notistack";
+import SplashLoader from "../../components/SplashLoader";
 
 const getStatusColor = (status) => {
   switch (status?.toLowerCase()) {
@@ -596,7 +597,7 @@ const AdminDashboard = () => {
 
   const fetchMessages = useCallback(async () => {
     try {
-      const response = await api.get('/contact');
+      const response = await api.get('/contact', { headers: { 'X-Background': 'true' } });
       const fetchedMessages = response.data;
       setMessages(fetchedMessages);
       setUnreadCount(calculateUnreadCount(fetchedMessages));
@@ -2218,16 +2219,7 @@ const renderMessages = () => {
 };
 
 if (loading) {
-  return (
-    <Box
-      display="flex"
-      justifyContent="center"
-      alignItems="center"
-      minHeight="80vh"
-    >
-      <CircularProgress />
-    </Box>
-  );
+  return <SplashLoader />;
 }
 
 return (
@@ -2448,7 +2440,7 @@ return (
         <Button onClick={() => setEditDoctorDialogOpen(false)}>Cancel</Button>
         <Button variant="contained" onClick={async () => {
           try {
-            await api.put(`/doctors/${editDoctorData.id}/profile`, {
+            const res = await api.put(`/doctors/${editDoctorData.id}/profile`, {
               specialization: editDoctorData.specialization,
               experience: Number(editDoctorData.experience),
               consultationFee: Number(editDoctorData.consultationFee),
@@ -2472,9 +2464,31 @@ return (
                 }
               }
             });
+            const updated = res.data;
+            setDoctors((prev) =>
+              Array.isArray(prev)
+                ? prev.map((d) =>
+                    d._id === updated._id
+                      ? {
+                          ...d,
+                          specialization: updated.specialization,
+                          experience: updated.experience,
+                          consultationFee: updated.consultationFee,
+                          license: updated.license,
+                          department: updated.department,
+                          user: {
+                            _id: updated.userId?._id,
+                            name: updated.userId?.name,
+                            email: updated.userId?.email,
+                            phone: updated.userId?.phone,
+                          },
+                        }
+                      : d
+                  )
+                : prev
+            );
             setSuccess('Doctor profile updated');
             setEditDoctorDialogOpen(false);
-            await fetchDashboardData();
           } catch (err) {
             setError(err.response?.data?.message || 'Failed to update doctor profile');
           }

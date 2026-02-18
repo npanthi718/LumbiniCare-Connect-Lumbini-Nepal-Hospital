@@ -23,7 +23,6 @@ import {
   DialogContent,
   DialogActions,
   TextField,
-  CircularProgress,
   Alert,
   Avatar,
   Chip,
@@ -33,6 +32,7 @@ import {
 import { Close } from '@mui/icons-material';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
+import SplashLoader from '../../components/SplashLoader';
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -286,11 +286,7 @@ const Dashboard = () => {
   );
 
   if (loading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
-        <CircularProgress />
-      </Box>
-    );
+    return <SplashLoader />;
   }
 
   return (

@@ -25,7 +25,6 @@ import {
   Tab,
   Avatar,
   Tooltip,
-  CircularProgress,
   TextField,
 } from '@mui/material';
 import {
@@ -41,6 +40,7 @@ import { format } from 'date-fns';
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import SplashLoader from "../../components/SplashLoader";
 
 // Add request interceptor to add token
 api.interceptors.request.use(
@@ -455,11 +455,7 @@ const Dashboard = () => {
   );
 
   if (loading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
-        <CircularProgress />
-      </Box>
-    );
+    return <SplashLoader />;
   }
 
   return (

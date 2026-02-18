@@ -13,6 +13,14 @@ const api = axios.create({
   }
 });
 
+export const prewarm = async () => {
+  try {
+    await api.get('/health');
+  } catch {
+    // ignore
+  }
+};
+
 if (typeof import.meta !== 'undefined' && import.meta.env?.DEV) {
   try {
     // eslint-disable-next-line no-console
@@ -37,8 +45,11 @@ api.interceptors.request.use(
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
     }
-    pendingRequests += 1;
-    emitLoadingEvent();
+    const silent = Boolean(config?.meta?.silent) || config.headers?.['X-Background'] === 'true';
+    if (!silent) {
+      pendingRequests += 1;
+      emitLoadingEvent();
+    }
     return config;
   },
   (error) => {
@@ -51,13 +62,19 @@ api.interceptors.request.use(
 // Add response interceptor
 api.interceptors.response.use(
   (response) => {
-    pendingRequests = Math.max(0, pendingRequests - 1);
-    emitLoadingEvent();
+    const silent = Boolean(response?.config?.meta?.silent) || response?.config?.headers?.['X-Background'] === 'true';
+    if (!silent) {
+      pendingRequests = Math.max(0, pendingRequests - 1);
+      emitLoadingEvent();
+    }
     return response;
   },
   (error) => {
-    pendingRequests = Math.max(0, pendingRequests - 1);
-    emitLoadingEvent();
+    const silent = Boolean(error?.config?.meta?.silent) || error?.config?.headers?.['X-Background'] === 'true';
+    if (!silent) {
+      pendingRequests = Math.max(0, pendingRequests - 1);
+      emitLoadingEvent();
+    }
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
       window.location.href = '/login';

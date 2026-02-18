@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { ErrorBoundary } from 'react-error-boundary';
 import App from './App';
+import { prewarm } from './services/api';
 import './index.css';
 
 function ErrorFallback({ error }) {
@@ -28,6 +29,11 @@ function ErrorFallback({ error }) {
     </div>
   );
 }
+
+// Prewarm backend to avoid cold-start delays
+prewarm();
+// Keep backend warm while browsing
+setInterval(prewarm, 12 * 60 * 1000);
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(

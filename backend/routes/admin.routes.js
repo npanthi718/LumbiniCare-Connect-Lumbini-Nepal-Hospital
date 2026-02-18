@@ -74,7 +74,7 @@ router.get('/doctors', async (req, res) => {
     const [docs, total] = await Promise.all([
       Doctor.find()
         .select('department consultationFee userId isApproved status specialization experience')
-        .populate({ path: 'userId', select: 'name email' })
+        .populate({ path: 'userId', select: 'name email phone' })
         .populate({ path: 'department', select: 'name' })
         .sort({ createdAt: -1 })
         .skip(skip)
@@ -93,7 +93,8 @@ router.get('/doctors', async (req, res) => {
       user: {
         _id: d.userId?._id,
         name: d.userId?.name || 'Unknown Doctor',
-        email: d.userId?.email || 'No email'
+        email: d.userId?.email || 'No email',
+        phone: d.userId?.phone
       },
       department: {
         _id: d.department?._id,

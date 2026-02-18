@@ -1,41 +1,42 @@
-# 🏥 **Hospital Management System**
+<div align="center">
 
-Welcome to the **Hospital Management System**, a comprehensive full-stack web application designed to streamline hospital operations and enhance patient care. Built with a powerful **Node.js** backend and a dynamic **React.js** frontend, this system ensures a seamless experience for administrators, doctors, and patients alike.
+<h1>🏥 Lumbini Nepal Hospital — MERN</h1>
+<p><strong>Secure, fast, and elegant hospital management</strong></p>
+<p>Admin • Doctor • Patient dashboards · Appointments · Prescriptions · Departments</p>
 
----
+<a href="#features">✨ Features</a> ·
+<a href="#quick-start">🚀 Quick Start</a> ·
+<a href="#architecture">🧱 Architecture</a> ·
+<a href="#docs">📘 Docs</a> ·
+<a href="#owner">👤 Owner</a>
 
-## 🌟 **Key Features**
-
-✨ **User Management**  
-Effortlessly manage patients, doctors, and admin users with role-based access control.
-
-✨ **Appointments**  
-Schedule, update, and track appointments with ease.
-
-✨ **Prescriptions**  
-Generate and manage prescriptions for patients.
-
-✨ **Departments**  
-Organize and manage hospital departments efficiently.
-
-✨ **Contact Management**  
-Handle inquiries and feedback from users.
-
-✨ **Authentication**  
-Secure login with JWT-based authentication and role-based access.
-
-✨ **Admin Dashboard**  
-A comprehensive dashboard with tools for administrators to monitor and manage hospital operations.
+</div>
 
 ---
 
-## 🗂️ **Project Structure**
+## ✨ Features
 
-### **Backend** (`/backend`)
+🔐 Role-based access for admin, doctor, patient
 
-The backend is powered by **Node.js** and **Express.js**, providing RESTful APIs for the frontend.
+📅 Appointments: schedule, complete, cancel guards
 
-#### 📁 **Folders and Files**
+💊 Prescriptions with medications/tests
+
+🏢 Departments & doctor specialization
+
+📩 Contact messages with admin actions
+
+⚡ Splash loader + skeletons + sticky tabs
+
+♿ Accessibility: inert + focus-safe global loader
+
+---
+
+## 🧱 Architecture
+
+Backend (`/backend`) — Node.js + Express, MongoDB + Mongoose, JWT, compression
+
+Folders and Files
 
 - **`app.js`**: Application entry point.
 - **`server.js`**: Configures and starts the server.
@@ -49,7 +50,7 @@ The backend is powered by **Node.js** and **Express.js**, providing RESTful APIs
   - `doctor.model.js`: Doctor schema.
   - `prescription.model.js`: Prescription schema.
   - `user.model.js`: User schema.
-- **`routes/`**: API routes for different modules.
+- **`routes/`**: API routes
   - `admin.routes.js`: Admin-related routes.
   - `appointment.routes.js`: Appointment-related routes.
   - `auth.routes.js`: Authentication routes.
@@ -72,9 +73,7 @@ The backend is powered by **Node.js** and **Express.js**, providing RESTful APIs
 
 ---
 
-### **Frontend** (`/frontend`)
-
-The frontend is built with **React.js**, offering a responsive and user-friendly interface.
+Frontend (`/frontend`) — React + Vite, MUI, Router, Axios
 
 #### 📁 **Folders and Files**
 
@@ -87,86 +86,50 @@ The frontend is built with **React.js**, offering a responsive and user-friendly
   - `styles/`: CSS and styling files.
 - **`package.json`**: Frontend dependencies and scripts.
 
-#### 📦 **Frontend Dependencies**
-
-- **React 18**: Modern SPA framework.
-- **MUI**: Component library for a polished UI.
-- **Axios**: HTTP client with interceptors.
-- **React Router v6**: Declarative routing.
-- **Vite**: Fast dev server and build tool.
-- **notistack**: Snackbars for user feedback.
-- **date-fns**: Date utilities.
+Key dependencies: React 18 · MUI · Axios · Router v6 · Vite · notistack · date-fns
 
 ---
 
-## 🚀 **Getting Started**
+## 🚀 Quick Start
 
 ### **Prerequisites**
 
 - **Node.js** (v14+)
 - **MongoDB** (local or cloud instance)
 
-### **Installation**
+Clone
+```bash
+git clone https://github.com/npanthi718/Lumbini-Nepal-Hospital--MERN-Stack-Project.git
+cd "Hospital Management System Latest GitHUB"
+```
 
-1. **Clone the repository**:
+Backend
+```bash
+cd backend
+npm install
+echo "PORT=5000
+MONGO_URI=mongodb://127.0.0.1:27017/hms
+JWT_SECRET=dev_secret
+FRONTEND_URL=http://localhost:5173" > .env
+npm run dev
+```
 
-   ```bash
-   git clone https://github.com/npanthi718/Lumbini-Nepal-Hospital--MERN-Stack-Project.git
-   cd hospital-management-system
-   ```
+Frontend
+```bash
+cd ../frontend
+npm install
+echo "VITE_API_BASE=http://localhost:5000/api" > .env
+npm run dev
+```
 
-2. **Backend Setup**:
-
-   ```bash
-   cd backend
-   npm install
-   ```
-
-   - Create a `.env` file in the `backend` directory:
-
-     ```
-     PORT=5000
-     MONGO_URI=your_mongodb_connection_string
-     JWT_SECRET=your_jwt_secret
-     ```
-
-   - Start the backend server:
-     ```bash
-     npm run dev
-     ```
-
-3. **Frontend Setup**:
-
-   ```bash
-   cd ../frontend
-   npm install
-   ```
-
-   - Start the frontend development server:
-     ```bash
-     npm run dev
-     ```
-
-4. **Access the Application**:
-   - Frontend (Vite): `http://localhost:5173`
-   - Backend (Express): `http://localhost:5000`
+Open http://localhost:5173
 
 ---
 
-## 🛠️ **Development Workflow**
-
-### **Backend**
-
-- Add new models in the `models/` directory.
-- Define API endpoints in the `routes/` directory.
-- Use middleware from the `middleware/` directory for authentication and role-based access.
-
-### **Frontend**
-
-- Create new components in the `src/components/` directory.
-- API base URL defaults to `/api` and proxies to backend port `5000` in dev.
-- Manage auth via `AuthContext` and interceptors in `src/services/api.js`.
-- Role-based routes are protected using `components/ProtectedRoute.jsx`.
+## 🛠️ Dev Notes
+- API base defaults to `/api`; set `VITE_API_BASE` to override.
+- Global interceptors emit loading events for Splash/Backdrop.
+- Protected routes guard role dashboards.
 
 ---
 
@@ -178,46 +141,32 @@ The frontend is built with **React.js**, offering a responsive and user-friendly
 
 ---
 
-## 📽️ **Demo Video**
-
-Watch the full demo of the **Hospital Management System** showcasing all features and functionalities:
-
-Watch the demo on Google Drive:  
+## 📽️ Demo Video
 https://drive.google.com/file/d/1qe58qWPFIisWnKE3ICuby9QM5zIL5yTv/view?usp=sharing
 
 ---
 
-## 🤝 **Contributing**
-
-We welcome contributions! Please follow these steps:
-
-1. Fork the repository.
-2. Create a new branch (`feature/your-feature`).
-3. Commit your changes.
-4. Open a pull request.
+## 🤝 Contributing
+- Fork, branch, PR — welcome!
 
 ---
 
-## 📜 **License**
-
-This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) file for details.
-
----
-
-## 💬 **Owner & Contact**
-
-**Owner:** Sushil Panthi  
-**Phone:** +919359029905 / +9779823009467  
-**WhatsApp:** +9779823009467  
-**Web Portfolio:** https://www.sushilpanthi.com
+## 📜 License
+MIT — see [LICENSE](LICENSE)
 
 ---
 
-### 🌟 **Star this repository if you found it helpful!**
+## 👤 Owner
+- Name: Sushil Panthi
+- Phone: +919359029905 / +9779823009467
+- WhatsApp: +9779823009467
+- Portfolio: https://www.sushilpanthi.com
 
-### 📘 Additional READMEs
-- Frontend docs: [frontend/README.md](frontend/README.md)
-- Backend docs: [backend/README.md](backend/README.md)
+---
+
+### 📘 Docs
+- Frontend: [frontend/README.md](frontend/README.md)
+- Backend: [backend/README.md](backend/README.md)
 
 ---
 
