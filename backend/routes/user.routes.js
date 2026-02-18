@@ -81,6 +81,43 @@ router.put('/profile', authenticateToken, validateUserUpdate, async (req, res) =
     }
 });
 
+// Update user profile by admin
+router.put('/:id/profile', authenticateToken, isAdmin, validateUserUpdate, async (req, res) => {
+    try {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ errors: errors.array() });
+        }
+        const updates = { ...req.body };
+        if (typeof updates.address === 'string') {
+            updates.address = { street: updates.address };
+        } else if (updates.address && typeof updates.address === 'object') {
+            updates.address = {
+                street: updates.address.street || '',
+                city: updates.address.city || '',
+                state: updates.address.state || '',
+                zipCode: updates.address.zipCode || '',
+                country: updates.address.country || ''
+            };
+        }
+        const user = await User.findById(req.params.id);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        Object.keys(updates).forEach(key => {
+            if (key !== 'password') {
+                user[key] = updates[key];
+            }
+        });
+        await user.save();
+        const safeUser = user.toObject();
+        delete safeUser.password;
+        res.json(safeUser);
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
 // Update user status (admin only)
 router.patch('/:id/status', authenticateToken, isAdmin, async (req, res) => {
     try {

@@ -10,6 +10,7 @@ const departmentRoutes = require("./routes/department.routes");
 const doctorRoutes = require("./routes/doctor.routes");
 const adminRoutes = require("./routes/admin.routes");
 const patientRoutes = require("./routes/patient.routes");
+const reviewRoutes = require("./routes/review.routes");
 
 // Load environment variables
 dotenv.config();
@@ -124,6 +125,7 @@ app.use("/api/departments", departmentRoutes);
 app.use("/api/doctors", doctorRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/patients", patientRoutes);
+app.use("/api/reviews", reviewRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {

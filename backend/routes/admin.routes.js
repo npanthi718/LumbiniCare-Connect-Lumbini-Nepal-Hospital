@@ -179,6 +179,17 @@ router.patch('/appointments/:id/status', async (req, res) => {
       return res.status(400).json({ message: 'Cancellation reason is required' });
     }
 
+    // Prevent reverting cancelled past appointments
+    if (status === 'confirmed' && appointment.status === 'cancelled') {
+      const aptDate = new Date(appointment.date);
+      aptDate.setHours(0, 0, 0, 0);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (aptDate < today) {
+        return res.status(400).json({ message: 'Cannot revert a cancelled appointment from a past date' });
+      }
+    }
+
     // Update the appointment
     appointment.status = status;
     if (status === 'cancelled') {
@@ -314,6 +325,66 @@ router.get('/doctors/:id/prescriptions', async (req, res) => {
     res.json(prescriptions);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching doctor prescriptions' });
+  }
+});
+
+// Doctor history: appointments with embedded prescription
+router.get('/doctor/:id/history', async (req, res) => {
+  try {
+    const doctorId = req.params.id;
+    const [appointments, prescriptions] = await Promise.all([
+      Appointment.find({ doctorId })
+        .populate({
+          path: 'doctorId',
+          populate: [
+            { path: 'userId', select: 'name email' },
+            { path: 'department', select: 'name' }
+          ]
+        })
+        .populate('patientId', 'name email phone')
+        .sort({ date: -1 })
+        .lean(),
+      Prescription.find({ doctorId }).lean()
+    ]);
+    const presByApt = new Map();
+    prescriptions.forEach(p => presByApt.set(String(p.appointmentId), p));
+    const history = appointments.map(a => ({
+      ...a,
+      prescription: presByApt.get(String(a._id)) || null
+    }));
+    res.json(history);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching doctor history', error: error.message });
+  }
+});
+
+// Patient history: appointments with embedded prescription
+router.get('/patient/:id/history', async (req, res) => {
+  try {
+    const patientId = req.params.id;
+    const [appointments, prescriptions] = await Promise.all([
+      Appointment.find({ patientId })
+        .populate({
+          path: 'doctorId',
+          populate: [
+            { path: 'userId', select: 'name email' },
+            { path: 'department', select: 'name' }
+          ]
+        })
+        .populate('patientId', 'name email phone')
+        .sort({ date: -1 })
+        .lean(),
+      Prescription.find({ patientId }).lean()
+    ]);
+    const presByApt = new Map();
+    prescriptions.forEach(p => presByApt.set(String(p.appointmentId), p));
+    const history = appointments.map(a => ({
+      ...a,
+      prescription: presByApt.get(String(a._id)) || null
+    }));
+    res.json(history);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching patient history', error: error.message });
   }
 });
 

@@ -633,18 +633,17 @@ const Appointments = () => {
                 </TableCell>
                 <TableCell>
                   <Box sx={{ display: 'flex', gap: 1 }}>
-                    
-                    {appointment.status !== 'completed' && (
+                    {appointment.status !== 'cancelled' && appointment.status !== 'completed' && (
                       <Button
                         variant="contained"
                         size="small"
-                        color="success"
+                        color="error"
                         onClick={() => {
                           setSelectedAppointment(appointment);
                           setOpenActionDialog(true);
                         }}
                       >
-                        Complete
+                        Cancel
                       </Button>
                     )}
                   </Box>
@@ -780,7 +779,7 @@ const Appointments = () => {
       <Dialog open={openActionDialog} onClose={() => setOpenActionDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="h6">Complete Appointment</Typography>
+            <Typography variant="h6">Cancel Appointment</Typography>
             <IconButton onClick={() => setOpenActionDialog(false)} size="small">
               <CloseIcon />
             </IconButton>
@@ -788,7 +787,7 @@ const Appointments = () => {
         </DialogTitle>
         <DialogContent>
           <TextField
-            label="Notes (optional)"
+            label="Reason (optional)"
             value={actionNotes}
             onChange={(e) => setActionNotes(e.target.value)}
             fullWidth
@@ -801,10 +800,10 @@ const Appointments = () => {
           <Button onClick={() => setOpenActionDialog(false)}>Cancel</Button>
           <Button
             variant="contained"
-            color="success"
-            onClick={() => handleAppointmentAction(selectedAppointment?._id, 'complete', actionNotes)}
+            color="error"
+            onClick={() => handleAppointmentAction(selectedAppointment?._id, 'cancel', actionNotes)}
           >
-            Confirm Complete
+            Confirm Cancel
           </Button>
         </DialogActions>
       </Dialog>

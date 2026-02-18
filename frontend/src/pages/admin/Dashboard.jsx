@@ -27,11 +27,15 @@ import {
   Tooltip,
   MenuItem,
   Select,
+  InputLabel,
   FormControl,
   Chip,
   CircularProgress,
   DialogContentText,
 } from "@mui/material";
+import Switch from "@mui/material/Switch";
+import { useTheme } from "@mui/material/styles";
+import useMediaQuery from "@mui/material/useMediaQuery";
 import Autocomplete from "@mui/material/Autocomplete";
 import {
   LocalHospital as HospitalIcon,
@@ -86,6 +90,8 @@ const AdminDashboard = () => {
   const { user, logout, login } = useAuth();
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
+  const theme = useTheme();
+  const fullScreen = useMediaQuery(theme.breakpoints.down('sm'));
   const [activeTab, setActiveTab] = useState(0);
   const [stats, setStats] = useState({
     totalDoctors: 0,
@@ -147,6 +153,10 @@ const AdminDashboard = () => {
     consultationFee: '',
     education: [{ degree: '', institution: '', year: '' }],
   });
+  const [editDoctorDialogOpen, setEditDoctorDialogOpen] = useState(false);
+  const [editDoctorData, setEditDoctorData] = useState(null);
+  const [editPatientDialogOpen, setEditPatientDialogOpen] = useState(false);
+  const [editPatientData, setEditPatientData] = useState(null);
 
   const calculateUnreadCount = (messages) => {
     return messages.filter(message => message.status === 'unread').length;
@@ -213,37 +223,44 @@ const AdminDashboard = () => {
           <CardContent>
             <Typography variant="h6" sx={{ mb: 2 }}>Add Doctor</Typography>
             <Grid container spacing={2}>
-              <Grid item xs={12}>
+              <Grid item xs={12} md={6}>
                 <TextField
                   label="Name"
                   value={doctorForm.name}
                   onChange={(e) => setDoctorForm({ ...doctorForm, name: e.target.value })}
                   fullWidth
+                  size="small"
                 />
               </Grid>
-              <Grid item xs={12}>
+              <Grid item xs={12} md={6}>
                 <TextField
                   label="Email"
                   value={doctorForm.email}
                   onChange={(e) => setDoctorForm({ ...doctorForm, email: e.target.value })}
                   fullWidth
+                  size="small"
                 />
               </Grid>
-              <Grid item xs={12}>
+              <Grid item xs={12} md={6}>
                 <TextField
                   label="Password"
                   type="password"
                   value={doctorForm.password}
                   onChange={(e) => setDoctorForm({ ...doctorForm, password: e.target.value })}
                   fullWidth
+                  size="small"
                 />
               </Grid>
-              <Grid item xs={12}>
+              <Grid item xs={12} md={6}>
                 <FormControl fullWidth>
+                  <InputLabel id="department-label">Department</InputLabel>
                   <Select
+                    labelId="department-label"
                     value={doctorForm.department}
                     onChange={(e) => setDoctorForm({ ...doctorForm, department: e.target.value })}
                     displayEmpty
+                    label="Department"
+                    size="small"
                   >
                     <MenuItem value=""><em>Select Department</em></MenuItem>
                     {deptList.map((d) => (
@@ -258,6 +275,7 @@ const AdminDashboard = () => {
                   value={doctorForm.specialization}
                   onChange={(e) => setDoctorForm({ ...doctorForm, specialization: e.target.value })}
                   fullWidth
+                  size="small"
                 />
               </Grid>
               <Grid item xs={12} md={6}>
@@ -267,6 +285,7 @@ const AdminDashboard = () => {
                   value={doctorForm.experience}
                   onChange={(e) => setDoctorForm({ ...doctorForm, experience: e.target.value })}
                   fullWidth
+                  size="small"
                 />
               </Grid>
               <Grid item xs={12} md={6}>
@@ -276,6 +295,7 @@ const AdminDashboard = () => {
                   value={doctorForm.consultationFee}
                   onChange={(e) => setDoctorForm({ ...doctorForm, consultationFee: e.target.value })}
                   fullWidth
+                  size="small"
                 />
               </Grid>
               <Grid item xs={12}>
@@ -284,10 +304,11 @@ const AdminDashboard = () => {
                   value={doctorForm.license}
                   onChange={(e) => setDoctorForm({ ...doctorForm, license: e.target.value })}
                   fullWidth
+                  size="small"
                 />
               </Grid>
               <Grid item xs={12}>
-                <Typography variant="subtitle2">Education</Typography>
+                  <Typography variant="subtitle2" sx={{ mb: 1 }}>Education</Typography>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                   {doctorForm.education.map((edu, idx) => (
                     <Grid container spacing={1} key={idx}>
@@ -737,32 +758,17 @@ const AdminDashboard = () => {
   };
 
   const categorizeAppointments = (appointmentsData) => {
-    const todayAppointments =
-      appointmentsData.today?.length
-        ? appointmentsData.today
-        : appointmentsData.all.filter(app => app.date && isToday(new Date(app.date)));
-
-    const upcomingAppointments =
-      appointmentsData.upcoming?.length
-        ? appointmentsData.upcoming
-        : appointmentsData.all.filter(app => app.date && isFuture(new Date(app.date)));
-
-    const completedAppointments =
-      appointmentsData.completed?.length
-        ? appointmentsData.completed
-        : appointmentsData.all.filter(app => app.status === 'completed');
-
-    const cancelledAppointments =
-      appointmentsData.cancelled?.length
-        ? appointmentsData.cancelled
-        : appointmentsData.all.filter(app => app.status === 'cancelled');
-
-    return {
-      todayAppointments,
-      upcomingAppointments,
-      completedAppointments,
-      cancelledAppointments
-    };
+    const all = appointmentsData.all || [];
+    const todayAppointments = all
+      .filter(app => app.date && isToday(new Date(app.date)) && app.status === 'pending');
+    const upcomingAppointments = all
+      .filter(app => app.date && isFuture(new Date(app.date)) && app.status === 'pending');
+    const completedAppointments = all
+      .filter(app => app.status === 'completed')
+      .sort((a, b) => new Date(b.date) - new Date(a.date));
+    const cancelledAppointments = all
+      .filter(app => app.status === 'cancelled');
+    return { todayAppointments, upcomingAppointments, completedAppointments, cancelledAppointments };
   };
 
   const handleConfirmCancel = async () => {
@@ -1002,6 +1008,42 @@ const AdminDashboard = () => {
                         <Assignment />
                       </IconButton>
                     </Tooltip>
+                    <Tooltip title="Edit Profile">
+                      <IconButton
+                        size="small"
+                        onClick={() => {
+                          const user = doctor.user || doctor.userId || {};
+                          const address = typeof user.address === 'object' ? user.address : { street: (typeof user.address === 'string' ? user.address : ''), city: '', state: '', zipCode: '', country: '' };
+                          const byDay = new Map((Array.isArray(doctor.availability) ? doctor.availability : []).map(a => [a.dayOfWeek, a]));
+                          const ensured = Array.from({ length: 7 }, (_, d) => byDay.get(d) || { dayOfWeek: d, startTime: '09:00', endTime: '17:00', isAvailable: true });
+                          setEditDoctorData({
+                            id: doctor._id,
+                            userId: user._id || doctor.userId?._id || undefined,
+                            userName: user.name || '',
+                            userEmail: user.email || '',
+                            userPhone: user.phone || '',
+                            userAge: user.age || '',
+                            userGender: user.gender || '',
+                            userBloodGroup: user.bloodGroup || '',
+                            userStreet: address.street || '',
+                            userCity: address.city || '',
+                            userState: address.state || '',
+                            userZipCode: address.zipCode || '',
+                            userCountry: address.country || '',
+                            specialization: doctor.specialization || '',
+                            experience: doctor.experience || 0,
+                            consultationFee: doctor.consultationFee || 0,
+                            license: doctor.license || '',
+                            department: typeof doctor.department === 'string' ? doctor.department : doctor.department?._id || '',
+                            emergencyAvailable: !!doctor.emergencyAvailable,
+                            availability: ensured
+                          });
+                          setEditDoctorDialogOpen(true);
+                        }}
+                      >
+                        <VisibilityIcon />
+                      </IconButton>
+                    </Tooltip>
                   </TableCell>
                 </TableRow>
               );
@@ -1109,6 +1151,29 @@ const AdminDashboard = () => {
                         color="primary"
                       >
                         <HistoryIcon />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Edit Profile">
+                      <IconButton
+                        size="small"
+                        onClick={() => {
+                          setEditPatientData({
+                            id: patient._id,
+                            name: patient.name || '',
+                            phone: patient.phone || '',
+                            age: patient.age || '',
+                            gender: patient.gender || '',
+                            bloodGroup: patient.bloodGroup || '',
+                            street: typeof patient.address === 'object' ? (patient.address.street || '') : (typeof patient.address === 'string' ? patient.address : ''),
+                            city: typeof patient.address === 'object' ? (patient.address.city || '') : '',
+                            state: typeof patient.address === 'object' ? (patient.address.state || '') : '',
+                            zipCode: typeof patient.address === 'object' ? (patient.address.zipCode || '') : '',
+                            country: typeof patient.address === 'object' ? (patient.address.country || '') : ''
+                          });
+                          setEditPatientDialogOpen(true);
+                        }}
+                      >
+                        <VisibilityIcon />
                       </IconButton>
                     </Tooltip>
                   </Box>
@@ -1461,13 +1526,41 @@ const AdminDashboard = () => {
                     />
                   </TableCell>
                   <TableCell>
-                    <IconButton
-                      size="small"
-                      onClick={() => handleViewAppointment(appointment)}
-                      color="primary"
-                    >
-                      <Assignment />
-                    </IconButton>
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                      <IconButton
+                        size="small"
+                        onClick={() => handleViewAppointment(appointment)}
+                        color="primary"
+                      >
+                        <Assignment />
+                      </IconButton>
+                      {(() => {
+                        const aptDate = new Date(appointment.date);
+                        aptDate.setHours(0,0,0,0);
+                        const today = new Date();
+                        today.setHours(0,0,0,0);
+                        const canRevert = aptDate >= today;
+                        return canRevert ? (
+                          <Tooltip title="Revert to Confirmed">
+                            <IconButton
+                              size="small"
+                              color="success"
+                              onClick={async () => {
+                                try {
+                                  await api.patch(`/admin/appointments/${appointment._id}/status`, { status: 'confirmed' });
+                                  setSuccess('Appointment reverted to confirmed');
+                                  fetchDashboardData();
+                                } catch (err) {
+                                  setError('Failed to revert appointment');
+                                }
+                              }}
+                            >
+                              <CheckCircle />
+                            </IconButton>
+                          </Tooltip>
+                        ) : null;
+                      })()}
+                    </Box>
                   </TableCell>
                 </TableRow>
               ))
@@ -1616,6 +1709,7 @@ const AdminDashboard = () => {
     onClose={() => setHistoryDialogOpen(false)}
     maxWidth="md"
     fullWidth
+    fullScreen={fullScreen}
   >
     <DialogTitle>
       <Box
@@ -1638,36 +1732,86 @@ const AdminDashboard = () => {
             {patientHistory.map((history, index) => (
               <Grid item xs={12} key={index}>
                 <Paper sx={{ p: 2 }}>
-                  <Typography variant="subtitle1" fontWeight="bold">
-                    Appointment #{index + 1}
-                  </Typography>
-                  <Typography>
-                    Date: {format(new Date(history.date), 'PP')}
-                  </Typography>
-                  <Typography>
-                    Doctor: {history.doctorId?.name || history.doctorId?.userId?.name || 'N/A'}
-                  </Typography>
-                  <Typography>
-                    Department: {history.doctorId?.department?.name || 'N/A'}
-                  </Typography>
-                  <Typography>Status: {history.status}</Typography>
-                  {history.prescription && (
-                    <Box sx={{ mt: 2 }}>
-                      <Typography variant="subtitle2" fontWeight="bold">
-                        Prescription
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} md={6}>
+                      <Typography variant="subtitle1" fontWeight="bold">
+                        Appointment #{index + 1}
                       </Typography>
-                      <Button
-                        variant="outlined"
-                        startIcon={<VisibilityIcon />}
-                        onClick={() => {
-                          setSelectedPrescription(history.prescription);
-                          setPrescriptionDialogOpen(true);
-                        }}
-                      >
-                        View Prescription
-                      </Button>
-                    </Box>
-                  )}
+                      <Typography>
+                        Date: {format(new Date(history.date), 'PP')}
+                      </Typography>
+                      <Typography>
+                        Status: {history.status}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <Typography variant="subtitle1" fontWeight="bold">
+                        Participants
+                      </Typography>
+                      <Typography>
+                        Doctor: {history.doctorId?.name || history.doctorId?.userId?.name || 'N/A'}
+                      </Typography>
+                      <Typography>
+                        Patient: {history.patientId?.name || 'N/A'}
+                      </Typography>
+                      <Typography>
+                        Department: {history.doctorId?.department?.name || 'N/A'}
+                      </Typography>
+                    </Grid>
+                    {history.notes && (
+                      <Grid item xs={12}>
+                        <Typography variant="subtitle2">Notes</Typography>
+                        <Paper variant="outlined" sx={{ p: 1, mt: 1 }}>
+                          <Typography>{history.notes}</Typography>
+                        </Paper>
+                      </Grid>
+                    )}
+                    {history.prescription && (
+                      <Grid item xs={12}>
+                        <Typography variant="subtitle2" fontWeight="bold">
+                          Prescription
+                        </Typography>
+                        <Grid container spacing={1} sx={{ mt: 1 }}>
+                          <Grid item xs={12} md={6}>
+                            <Typography>
+                              Diagnosis: {history.prescription.diagnosis || 'N/A'}
+                            </Typography>
+                          </Grid>
+                          <Grid item xs={12} md={6}>
+                            <Typography>
+                              Created: {format(new Date(history.prescription.createdAt), 'PP')}
+                            </Typography>
+                          </Grid>
+                          {Array.isArray(history.prescription.medications) && history.prescription.medications.length > 0 && (
+                            <Grid item xs={12}>
+                              <Typography variant="subtitle2">Medications</Typography>
+                              <Box sx={{ mt: 1 }}>
+                                {history.prescription.medications.map((m, i) => (
+                                  <Paper key={i} variant="outlined" sx={{ p: 1, mb: 1 }}>
+                                    <Typography>
+                                      {m.name} — {m.dosage}, {m.frequency}, {m.duration}
+                                    </Typography>
+                                  </Paper>
+                                ))}
+                              </Box>
+                            </Grid>
+                          )}
+                          <Grid item xs={12}>
+                            <Button
+                              variant="outlined"
+                              startIcon={<VisibilityIcon />}
+                              onClick={() => {
+                                setSelectedPrescription(history.prescription);
+                                setPrescriptionDialogOpen(true);
+                              }}
+                            >
+                              View Full Prescription
+                            </Button>
+                          </Grid>
+                        </Grid>
+                      </Grid>
+                    )}
+                  </Grid>
                 </Paper>
               </Grid>
             ))}
@@ -1693,6 +1837,7 @@ const renderPrescriptionDialog = () => (
     onClose={() => setPrescriptionDialogOpen(false)}
     maxWidth="md"
     fullWidth
+    fullScreen={fullScreen}
   >
     <DialogTitle>
       <Box
@@ -2041,6 +2186,287 @@ return (
     {renderAppointmentDialog()}
     {renderHistoryDialog()}
     {renderPrescriptionDialog()}
+
+    <Dialog open={editDoctorDialogOpen} onClose={() => setEditDoctorDialogOpen(false)} maxWidth="md" fullWidth fullScreen={fullScreen}>
+      <DialogTitle>Edit Doctor Profile</DialogTitle>
+      <DialogContent>
+        {editDoctorData && (
+          <Grid container spacing={2} sx={{ mt: 1 }}>
+            <Grid item xs={12}>
+              <Typography variant="subtitle1">Personal Information</Typography>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField label="Name" fullWidth value={editDoctorData.userName} onChange={(e) => setEditDoctorData({ ...editDoctorData, userName: e.target.value })} />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField label="Email" type="email" fullWidth value={editDoctorData.userEmail} onChange={(e) => setEditDoctorData({ ...editDoctorData, userEmail: e.target.value })} />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField label="Phone" fullWidth value={editDoctorData.userPhone} onChange={(e) => setEditDoctorData({ ...editDoctorData, userPhone: e.target.value })} />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField label="Age" type="number" fullWidth value={editDoctorData.userAge} onChange={(e) => setEditDoctorData({ ...editDoctorData, userAge: e.target.value })} />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <FormControl fullWidth>
+                <InputLabel id="gender-label">Gender</InputLabel>
+                <Select
+                  labelId="gender-label"
+                  label="Gender"
+                  value={editDoctorData.userGender}
+                  onChange={(e) => setEditDoctorData({ ...editDoctorData, userGender: e.target.value })}
+                >
+                  <MenuItem value=""><em>Select Gender</em></MenuItem>
+                  <MenuItem value="male">Male</MenuItem>
+                  <MenuItem value="female">Female</MenuItem>
+                  <MenuItem value="other">Other</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <FormControl fullWidth>
+                <InputLabel id="blood-group-label">Blood Group</InputLabel>
+                <Select
+                  labelId="blood-group-label"
+                  label="Blood Group"
+                  value={editDoctorData.userBloodGroup}
+                  onChange={(e) => setEditDoctorData({ ...editDoctorData, userBloodGroup: e.target.value })}
+                >
+                  {["A+","A-","B+","B-","AB+","AB-","O+","O-"].map(bg => (
+                    <MenuItem key={bg} value={bg}>{bg}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12}>
+              <Typography variant="subtitle2">Address</Typography>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField label="Street" fullWidth value={editDoctorData.userStreet} onChange={(e) => setEditDoctorData({ ...editDoctorData, userStreet: e.target.value })} />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField label="City" fullWidth value={editDoctorData.userCity} onChange={(e) => setEditDoctorData({ ...editDoctorData, userCity: e.target.value })} />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField label="State" fullWidth value={editDoctorData.userState} onChange={(e) => setEditDoctorData({ ...editDoctorData, userState: e.target.value })} />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField label="Zip Code" fullWidth value={editDoctorData.userZipCode} onChange={(e) => setEditDoctorData({ ...editDoctorData, userZipCode: e.target.value })} />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField label="Country" fullWidth value={editDoctorData.userCountry} onChange={(e) => setEditDoctorData({ ...editDoctorData, userCountry: e.target.value })} />
+            </Grid>
+            <Grid item xs={12}>
+              <Typography variant="subtitle1">Professional Information</Typography>
+            </Grid>
+            <Grid item xs={12}>
+              <FormControl fullWidth>
+                <InputLabel id="edit-department-label">Department</InputLabel>
+                <Select
+                  labelId="edit-department-label"
+                  label="Department"
+                  value={editDoctorData.department}
+                  onChange={(e) => setEditDoctorData({ ...editDoctorData, department: e.target.value })}
+                >
+                  <MenuItem value=""><em>Select Department</em></MenuItem>
+                  {deptList.map((d) => (
+                    <MenuItem key={d._id} value={d._id}>{d.name}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12}>
+              <TextField label="Specialization" fullWidth value={editDoctorData.specialization} onChange={(e) => setEditDoctorData({ ...editDoctorData, specialization: e.target.value })} />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField label="Experience (years)" type="number" fullWidth value={editDoctorData.experience} onChange={(e) => setEditDoctorData({ ...editDoctorData, experience: e.target.value })} />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField label="Consultation Fee" type="number" fullWidth value={editDoctorData.consultationFee} onChange={(e) => setEditDoctorData({ ...editDoctorData, consultationFee: e.target.value })} />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField label="License" fullWidth value={editDoctorData.license} onChange={(e) => setEditDoctorData({ ...editDoctorData, license: e.target.value })} />
+            </Grid>
+            <Grid item xs={12}>
+              <Typography variant="subtitle1">Emergency & Availability</Typography>
+            </Grid>
+            <Grid item xs={12}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Switch checked={!!editDoctorData.emergencyAvailable} onChange={(e) => setEditDoctorData({ ...editDoctorData, emergencyAvailable: e.target.checked })} />
+                <Typography>Emergency Available</Typography>
+              </Box>
+            </Grid>
+            {Array.isArray(editDoctorData.availability) && editDoctorData.availability.map((av, idx) => {
+              const names = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+              return (
+                <Grid container key={idx} spacing={1} sx={{ px: 2, mb: 1 }}>
+                  <Grid item xs={12} md={3}>
+                    <Typography>{names[av.dayOfWeek]}</Typography>
+                  </Grid>
+                  <Grid item xs={6} md={3}>
+                    <TextField
+                      label="Start"
+                      type="time"
+                      fullWidth
+                      value={av.startTime}
+                      onChange={(e) => {
+                        const next = [...editDoctorData.availability];
+                        next[idx] = { ...next[idx], startTime: e.target.value };
+                        setEditDoctorData({ ...editDoctorData, availability: next });
+                      }}
+                    />
+                  </Grid>
+                  <Grid item xs={6} md={3}>
+                    <TextField
+                      label="End"
+                      type="time"
+                      fullWidth
+                      value={av.endTime}
+                      onChange={(e) => {
+                        const next = [...editDoctorData.availability];
+                        next[idx] = { ...next[idx], endTime: e.target.value };
+                        setEditDoctorData({ ...editDoctorData, availability: next });
+                      }}
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={3}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Switch
+                        checked={!!av.isAvailable}
+                        onChange={(e) => {
+                          const next = [...editDoctorData.availability];
+                          next[idx] = { ...next[idx], isAvailable: e.target.checked };
+                          setEditDoctorData({ ...editDoctorData, availability: next });
+                        }}
+                      />
+                      <Typography>Available</Typography>
+                    </Box>
+                  </Grid>
+                </Grid>
+              );
+            })}
+          </Grid>
+        )}
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={() => setEditDoctorDialogOpen(false)}>Cancel</Button>
+        <Button variant="contained" onClick={async () => {
+          try {
+            await api.put(`/doctors/${editDoctorData.id}/profile`, {
+              specialization: editDoctorData.specialization,
+              experience: Number(editDoctorData.experience),
+              consultationFee: Number(editDoctorData.consultationFee),
+              license: editDoctorData.license,
+              department: editDoctorData.department || undefined,
+              emergencyAvailable: !!editDoctorData.emergencyAvailable,
+              availability: editDoctorData.availability,
+              userId: {
+                name: editDoctorData.userName,
+                email: editDoctorData.userEmail,
+                phone: editDoctorData.userPhone,
+                age: editDoctorData.userAge ? Number(editDoctorData.userAge) : undefined,
+                gender: editDoctorData.userGender || undefined,
+                bloodGroup: editDoctorData.userBloodGroup || undefined,
+                address: {
+                  street: editDoctorData.userStreet || '',
+                  city: editDoctorData.userCity || '',
+                  state: editDoctorData.userState || '',
+                  zipCode: editDoctorData.userZipCode || '',
+                  country: editDoctorData.userCountry || ''
+                }
+              }
+            });
+            setSuccess('Doctor profile updated');
+            setEditDoctorDialogOpen(false);
+            await fetchDashboardData();
+          } catch (err) {
+            setError(err.response?.data?.message || 'Failed to update doctor profile');
+          }
+        }}>Save</Button>
+      </DialogActions>
+    </Dialog>
+
+    <Dialog open={editPatientDialogOpen} onClose={() => setEditPatientDialogOpen(false)} maxWidth="sm" fullWidth fullScreen={fullScreen}>
+      <DialogTitle>Edit Patient Profile</DialogTitle>
+      <DialogContent>
+        {editPatientData && (
+          <Grid container spacing={2} sx={{ mt: 1 }}>
+            <Grid item xs={12}>
+              <TextField label="Name" fullWidth value={editPatientData.name} onChange={(e) => setEditPatientData({ ...editPatientData, name: e.target.value })} />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField label="Phone" fullWidth value={editPatientData.phone} onChange={(e) => setEditPatientData({ ...editPatientData, phone: e.target.value })} />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField label="Age" type="number" fullWidth value={editPatientData.age} onChange={(e) => setEditPatientData({ ...editPatientData, age: e.target.value })} />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField label="Blood Group" fullWidth value={editPatientData.bloodGroup} onChange={(e) => setEditPatientData({ ...editPatientData, bloodGroup: e.target.value })} />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <FormControl fullWidth>
+                <InputLabel id="patient-gender-label">Gender</InputLabel>
+                <Select
+                  labelId="patient-gender-label"
+                  label="Gender"
+                  value={editPatientData.gender}
+                  onChange={(e) => setEditPatientData({ ...editPatientData, gender: e.target.value })}
+                >
+                  <MenuItem value=""><em>Select Gender</em></MenuItem>
+                  <MenuItem value="male">Male</MenuItem>
+                  <MenuItem value="female">Female</MenuItem>
+                  <MenuItem value="other">Other</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12}>
+              <Typography variant="subtitle2">Address</Typography>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField label="Street" fullWidth value={editPatientData.street} onChange={(e) => setEditPatientData({ ...editPatientData, street: e.target.value })} />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField label="City" fullWidth value={editPatientData.city} onChange={(e) => setEditPatientData({ ...editPatientData, city: e.target.value })} />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField label="State" fullWidth value={editPatientData.state} onChange={(e) => setEditPatientData({ ...editPatientData, state: e.target.value })} />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField label="Zip Code" fullWidth value={editPatientData.zipCode} onChange={(e) => setEditPatientData({ ...editPatientData, zipCode: e.target.value })} />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField label="Country" fullWidth value={editPatientData.country} onChange={(e) => setEditPatientData({ ...editPatientData, country: e.target.value })} />
+            </Grid>
+          </Grid>
+        )}
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={() => setEditPatientDialogOpen(false)}>Cancel</Button>
+        <Button variant="contained" onClick={async () => {
+          try {
+            await api.put(`/users/${editPatientData.id}/profile`, {
+              name: editPatientData.name,
+              phone: editPatientData.phone,
+              age: Number(editPatientData.age),
+              bloodGroup: editPatientData.bloodGroup,
+              gender: editPatientData.gender || undefined,
+              address: {
+                street: editPatientData.street || '',
+                city: editPatientData.city || '',
+                state: editPatientData.state || '',
+                zipCode: editPatientData.zipCode || '',
+                country: editPatientData.country || ''
+              }
+            });
+            setSuccess('Patient profile updated');
+            setEditPatientDialogOpen(false);
+            await fetchDashboardData();
+          } catch (err) {
+            setError(err.response?.data?.message || 'Failed to update patient profile');
+          }
+        }}>Save</Button>
+      </DialogActions>
+    </Dialog>
 
     <Dialog
       open={openCancelDialog}

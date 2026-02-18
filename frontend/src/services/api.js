@@ -13,11 +13,14 @@ const api = axios.create({
   }
 });
 
-try {
-  console.log('API baseURL:', baseURL);
-} catch (e) {
-  // eslint-disable-next-line no-console
-  console.warn('API baseURL log failed');
+if (typeof import.meta !== 'undefined' && import.meta.env?.DEV) {
+  try {
+    // eslint-disable-next-line no-console
+    console.log('API baseURL:', baseURL);
+  } catch {
+    // eslint-disable-next-line no-console
+    console.warn('API baseURL log failed');
+  }
 }
 
 let pendingRequests = 0;

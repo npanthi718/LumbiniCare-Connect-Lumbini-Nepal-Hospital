@@ -5,6 +5,7 @@ const Doctor = require("../models/doctor.model");
 const User = require("../models/user.model");
 const Appointment = require("../models/appointment.model");
 const Prescription = require("../models/prescription.model");
+const Review = require("../models/review.model");
 const { authenticateToken, isAdmin } = require("../middleware/auth");
 const { startOfDay, endOfDay, parse, format } = require('date-fns');
 
@@ -82,7 +83,18 @@ router.get("/", async (req, res) => {
       return res.json({ items, page, limit, total, totalPages: Math.ceil(total / limit) });
     }
 
-    res.json({ items: docs, page, limit, total, totalPages: Math.ceil(total / limit) });
+    // Attach ratings
+    const reviewAgg = await Review.aggregate([
+      { $match: { doctorId: { $in: docs.map(d => d._id) } } },
+      { $group: { _id: "$doctorId", avg: { $avg: "$rating" }, total: { $sum: 1 } } }
+    ]);
+    const statsMap = new Map(reviewAgg.map(r => [String(r._id), { avg: r.avg, total: r.total }]));
+    const withRatings = docs.map(d => {
+      const s = statsMap.get(String(d._id)) || { avg: 0, total: 0 };
+      return { ...d, rating: Number(s.avg || 0).toFixed(1), totalReviews: s.total };
+    });
+
+    res.json({ items: withRatings, page, limit, total, totalPages: Math.ceil(total / limit) });
   } catch (error) {
     res.status(500).json({ message: "Error fetching doctors", error: error.message });
   }
@@ -111,7 +123,7 @@ router.post(
         return res.status(400).json({ errors: errors.array() });
       }
 
-      const { name, email, password, department, specialization, experience, education, license, consultationFee } = req.body;
+      const { name, email, password, department, specialization, experience, education, license, consultationFee, emergencyAvailable } = req.body;
 
       const existingUser = await User.findOne({ email });
       if (existingUser) {
@@ -129,6 +141,7 @@ router.post(
         education,
         license,
         consultationFee,
+        emergencyAvailable: !!emergencyAvailable,
         isApproved: true,
         status: "active"
       });
@@ -236,6 +249,17 @@ router.patch("/appointments/:id/status", authenticateToken, async (req, res) => 
       return res.status(404).json({ message: "Appointment not found" });
     }
 
+    // Prevent reverting cancelled past appointments
+    if (status === 'confirmed' && appointment.status === 'cancelled') {
+      const aptDate = new Date(appointment.date);
+      aptDate.setHours(0, 0, 0, 0);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (aptDate < today) {
+        return res.status(400).json({ message: "Cannot revert a cancelled past appointment" });
+      }
+    }
+
     appointment.status = status;
     await appointment.save();
 
@@ -337,6 +361,11 @@ router.put("/:id/profile", authenticateToken, isAdmin, async (req, res) => {
       doctor.specialization = req.body.specialization;
     if (req.body.department) doctor.department = req.body.department;
     if (req.body.experience) doctor.experience = req.body.experience;
+    if (req.body.consultationFee !== undefined) doctor.consultationFee = req.body.consultationFee;
+    if (Array.isArray(req.body.education)) doctor.education = req.body.education;
+    if (req.body.license) doctor.license = req.body.license;
+    if (Array.isArray(req.body.availability)) doctor.availability = req.body.availability;
+    if (req.body.emergencyAvailable !== undefined) doctor.emergencyAvailable = !!req.body.emergencyAvailable;
 
     // Update user fields if provided
     if (req.body.userId && doctor.userId) {
@@ -344,6 +373,23 @@ router.put("/:id/profile", authenticateToken, isAdmin, async (req, res) => {
       if (user) {
         if (req.body.userId.name) user.name = req.body.userId.name;
         if (req.body.userId.email) user.email = req.body.userId.email;
+        if (req.body.userId.phone !== undefined) user.phone = req.body.userId.phone;
+        if (req.body.userId.age !== undefined) user.age = req.body.userId.age;
+        if (req.body.userId.gender) user.gender = req.body.userId.gender;
+        if (req.body.userId.bloodGroup) user.bloodGroup = req.body.userId.bloodGroup;
+        if (req.body.userId.address) {
+          if (typeof req.body.userId.address === 'string') {
+            user.address = { street: req.body.userId.address };
+          } else if (typeof req.body.userId.address === 'object') {
+            user.address = {
+              street: req.body.userId.address.street || '',
+              city: req.body.userId.address.city || '',
+              state: req.body.userId.address.state || '',
+              zipCode: req.body.userId.address.zipCode || '',
+              country: req.body.userId.address.country || ''
+            };
+          }
+        }
         await user.save();
       }
     }
@@ -365,6 +411,73 @@ router.put("/:id/profile", authenticateToken, isAdmin, async (req, res) => {
     res
       .status(500)
       .json({ message: "Error updating doctor profile", error: error.message });
+  }
+});
+
+// Update own profile (doctor)
+router.put("/me/profile", authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'doctor') {
+      return res.status(403).json({ message: "Access denied: Doctor only" });
+    }
+    const doctor = await Doctor.findOne({ userId: req.user._id });
+    if (!doctor) {
+      return res.status(404).json({ message: "Doctor profile not found" });
+    }
+    if (req.body.specialization) doctor.specialization = req.body.specialization;
+    if (req.body.experience !== undefined) doctor.experience = req.body.experience;
+    if (req.body.consultationFee !== undefined) doctor.consultationFee = req.body.consultationFee;
+    if (Array.isArray(req.body.education)) doctor.education = req.body.education;
+    if (req.body.license) doctor.license = req.body.license;
+    if (Array.isArray(req.body.availability)) doctor.availability = req.body.availability;
+    if (req.body.emergencyAvailable !== undefined) doctor.emergencyAvailable = !!req.body.emergencyAvailable;
+    if (req.body.user) {
+      const user = await User.findById(doctor.userId);
+      if (user) {
+        if (req.body.user.name) user.name = req.body.user.name;
+        if (req.body.user.email) user.email = req.body.user.email;
+        await user.save();
+      }
+    }
+    await doctor.save();
+    const updated = await Doctor.findById(doctor._id)
+      .populate({ path: "userId", select: "name email profilePhoto phoneNumber" })
+      .populate("department")
+      .lean();
+    res.json(updated);
+  } catch (error) {
+    res.status(500).json({ message: "Error updating profile", error: error.message });
+  }
+});
+
+// Get own doctor profile (doctor)
+router.get("/me", authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'doctor') {
+      return res.status(403).json({ message: "Access denied: Doctor only" });
+    }
+    let doctor = null;
+    try {
+      doctor = await Doctor.findOne({ userId: req.user._id })
+        .populate({ path: "userId", select: "name email profilePhoto phoneNumber" })
+        .populate({ path: "department", select: "name" })
+        .lean();
+    } catch (populateErr) {
+      if (String(populateErr.message).includes('Cast to ObjectId')) {
+        doctor = await Doctor.findOne({ userId: req.user._id }).lean();
+        if (doctor && typeof doctor.department === 'string') {
+          doctor = { ...doctor, department: { name: doctor.department } };
+        }
+      } else {
+        throw populateErr;
+      }
+    }
+    if (!doctor) {
+      return res.status(404).json({ message: "Doctor profile not found" });
+    }
+    res.json(doctor);
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching profile", error: error.message });
   }
 });
 

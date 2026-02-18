@@ -38,6 +38,9 @@ import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import { format } from 'date-fns';
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 
 // Add request interceptor to add token
 api.interceptors.request.use(
@@ -83,7 +86,6 @@ const Dashboard = () => {
   });
   const [prescriptions, setPrescriptions] = useState([]);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
-  const [completeDialogOpen, setCompleteDialogOpen] = useState(false);
   const [prescriptionData, setPrescriptionData] = useState({
     diagnosis: '',
     medicines: [{ name: '', dosage: '', frequency: '', duration: '' }],
@@ -91,6 +93,8 @@ const Dashboard = () => {
     notes: '',
     followUpDate: ''
   });
+  const [completeChoiceOpen, setCompleteChoiceOpen] = useState(false);
+  const [prescriptionDialogOpen, setPrescriptionDialogOpen] = useState(false);
  
   const [activeTab, setActiveTab] = useState(0);
   const [error, setError] = useState(null);
@@ -184,7 +188,7 @@ const Dashboard = () => {
       });
 
       try {
-        const prescriptionsRes = await api.get('/prescription/doctor');
+        const prescriptionsRes = await api.get('/prescriptions/doctor');
         setPrescriptions(prescriptionsRes.data || []);
       } catch {
         setPrescriptions([]);
@@ -221,7 +225,22 @@ const Dashboard = () => {
   }, [navigate]);
 
   useEffect(() => {
-    fetchDashboardData();
+    const checkDoctorProfile = async () => {
+      try {
+        const res = await api.get('/doctors/me');
+        const dp = res.data;
+        const incomplete = !dp.specialization || !dp.experience && dp.experience !== 0 || !dp.license || dp.education?.length === 0 || !dp.consultationFee && dp.consultationFee !== 0 || dp.availability?.length === 0;
+        if (incomplete) {
+          setError('Please complete your profile before managing appointments');
+          navigate('/doctor/profile');
+          return;
+        }
+      } catch {
+        // ignore
+      }
+      fetchDashboardData();
+    };
+    checkDoctorProfile();
   }, [fetchDashboardData]);
 
   const handleTabChange = (event, newValue) => {
@@ -363,17 +382,35 @@ const Dashboard = () => {
                     <Assignment />
                   </IconButton>
                 </Tooltip>
-                {appointment.status !== 'completed' && (
+                {appointment.status === 'pending' && (
+                  <Tooltip title="Approve">
+                    <IconButton
+                      color="success"
+                      onClick={async () => {
+                        try {
+                          await api.patch(`/doctors/appointments/${appointment._id}/status`, { status: 'confirmed' });
+                          setSuccess('Appointment approved');
+                          fetchDashboardData();
+                        } catch (err) {
+                          setError('Failed to approve appointment');
+                        }
+                      }}
+                    >
+                      <CheckCircleIcon />
+                    </IconButton>
+                  </Tooltip>
+                )}
+                {appointment.status === 'confirmed' && (
                   <Tooltip title="Complete">
                     <IconButton color="success" onClick={() => {
                       setSelectedAppointment(appointment);
-                      setCompleteDialogOpen(true);
+                      setCompleteChoiceOpen(true);
                     }}>
                       <CheckCircleIcon />
                     </IconButton>
                   </Tooltip>
                 )}
-                {appointment.status !== 'cancelled' && (
+                {appointment.status !== 'cancelled' && appointment.status !== 'completed' && (
                   <Tooltip title="Cancel">
                     <IconButton
                       color="error"
@@ -388,6 +425,24 @@ const Dashboard = () => {
                       }}
                     >
                       <DeleteIcon />
+                    </IconButton>
+                  </Tooltip>
+                )}
+                {appointment.status === 'cancelled' && (
+                  <Tooltip title="Revert to Confirmed">
+                    <IconButton
+                      color="primary"
+                      onClick={async () => {
+                        try {
+                          await api.patch(`/doctors/appointments/${appointment._id}/status`, { status: 'confirmed' });
+                          setSuccess('Cancelled appointment reverted to confirmed');
+                          fetchDashboardData();
+                        } catch (err) {
+                          setError('Failed to revert appointment');
+                        }
+                      }}
+                    >
+                      <Assignment />
                     </IconButton>
                   </Tooltip>
                 )}
@@ -429,7 +484,7 @@ const Dashboard = () => {
 
       <Grid container spacing={3} sx={{ mb: 3 }}>
         <Grid item xs={12} sm={6} md={3}>
-          <Card>
+          <Card sx={{ cursor: 'pointer' }} onClick={() => setActiveTab(4)}>
             <CardContent>
               <Typography color="text.secondary" gutterBottom>Total Appointments</Typography>
               <Typography variant="h5">{stats.totalAppointments}</Typography>
@@ -437,7 +492,7 @@ const Dashboard = () => {
           </Card>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <Card>
+          <Card sx={{ cursor: 'pointer' }} onClick={() => setActiveTab(0)}>
             <CardContent>
               <Typography color="text.secondary" gutterBottom>Today&apos;s</Typography>
               <Typography variant="h5">{stats.todayAppointments}</Typography>
@@ -445,7 +500,7 @@ const Dashboard = () => {
           </Card>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <Card>
+          <Card sx={{ cursor: 'pointer' }} onClick={() => setActiveTab(1)}>
             <CardContent>
               <Typography color="text.secondary" gutterBottom>Upcoming</Typography>
               <Typography variant="h5">{stats.upcomingAppointments}</Typography>
@@ -453,7 +508,7 @@ const Dashboard = () => {
           </Card>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <Card>
+          <Card sx={{ cursor: 'pointer' }} onClick={() => setActiveTab(2)}>
             <CardContent>
               <Typography color="text.secondary" gutterBottom>Completed</Typography>
               <Typography variant="h5">{stats.completedAppointments}</Typography>
@@ -532,19 +587,66 @@ const Dashboard = () => {
         appointment={selectedAppointment}
       />
 
-      <Dialog open={completeDialogOpen} onClose={() => setCompleteDialogOpen(false)} maxWidth="md" fullWidth>
+      <Dialog open={completeChoiceOpen} onClose={() => setCompleteChoiceOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Typography variant="h6">Complete Appointment</Typography>
-            <IconButton onClick={() => setCompleteDialogOpen(false)} size="small">
+            <IconButton onClick={() => setCompleteChoiceOpen(false)} size="small">
               <CloseIcon />
             </IconButton>
           </Box>
         </DialogTitle>
         <DialogContent>
-          <Typography variant="subtitle1" sx={{ mb: 2 }}>
-            Prescription is optional. You can complete without adding one.
+          <Typography variant="body1" sx={{ mb: 2 }}>
+            Choose how you want to complete this appointment.
           </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            variant="outlined"
+            onClick={async () => {
+              try {
+                if (!selectedAppointment) return;
+                await api.patch(`/doctors/appointments/${selectedAppointment._id}/complete`);
+                setSuccess('Appointment completed without prescription');
+                setCompleteChoiceOpen(false);
+                setPrescriptionData({
+                  diagnosis: '',
+                  medicines: [{ name: '', dosage: '', frequency: '', duration: '' }],
+                  tests: [],
+                  notes: '',
+                  followUpDate: ''
+                });
+                fetchDashboardData();
+              } catch (err) {
+                setError('Failed to complete appointment');
+              }
+            }}
+          >
+            Complete Without Prescription
+          </Button>
+          <Button
+            variant="contained"
+            onClick={() => {
+              setCompleteChoiceOpen(false);
+              setPrescriptionDialogOpen(true);
+            }}
+          >
+            Complete With Prescription
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={prescriptionDialogOpen} onClose={() => setPrescriptionDialogOpen(false)} maxWidth="md" fullWidth>
+        <DialogTitle>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="h6">Add Prescription</Typography>
+            <IconButton onClick={() => setPrescriptionDialogOpen(false)} size="small">
+              <CloseIcon />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
           <Grid container spacing={2}>
             <Grid item xs={12}>
               <TextField
@@ -649,39 +751,29 @@ const Dashboard = () => {
               />
             </Grid>
             <Grid item xs={12} sm={6}>
-              <TextField
-                label="Follow-up Date (YYYY-MM-DD)"
-                fullWidth
-                value={prescriptionData.followUpDate}
-                onChange={(e) => setPrescriptionData({ ...prescriptionData, followUpDate: e.target.value })}
-              />
+              {/* Use MUI DatePicker for better UX, only future dates */}
+              {/* eslint-disable-next-line react/jsx-no-undef */}
+              <LocalizationProvider dateAdapter={AdapterDateFns}>
+                {/* eslint-disable-next-line react/jsx-no-undef */}
+                <DatePicker
+                  label="Follow-up Date"
+                  value={prescriptionData.followUpDate ? new Date(prescriptionData.followUpDate) : null}
+                  onChange={(date) => {
+                    const d = date instanceof Date && !isNaN(date) ? date : null;
+                    setPrescriptionData({ 
+                      ...prescriptionData, 
+                      followUpDate: d ? format(d, 'yyyy-MM-dd') : '' 
+                    });
+                  }}
+                  minDate={new Date()}
+                  // eslint-disable-next-line react/jsx-no-undef
+                  renderInput={(params) => <TextField {...params} fullWidth />}
+                />
+              </LocalizationProvider>
             </Grid>
           </Grid>
         </DialogContent>
         <DialogActions>
-          <Button
-            variant="outlined"
-            onClick={async () => {
-              try {
-                if (!selectedAppointment) return;
-                await api.patch(`/doctors/appointments/${selectedAppointment._id}/complete`);
-                setSuccess('Appointment completed without prescription');
-                setCompleteDialogOpen(false);
-                setPrescriptionData({
-                  diagnosis: '',
-                  medicines: [{ name: '', dosage: '', frequency: '', duration: '' }],
-                  tests: [],
-                  notes: '',
-                  followUpDate: ''
-                });
-                fetchDashboardData();
-              } catch (err) {
-                setError('Failed to complete appointment');
-              }
-            }}
-          >
-            Complete Without Prescription
-          </Button>
           <Button
             variant="contained"
             onClick={async () => {
@@ -690,7 +782,7 @@ const Dashboard = () => {
                 const payload = { prescription: prescriptionData };
                 await api.patch(`/doctors/appointments/${selectedAppointment._id}/complete`, payload);
                 setSuccess('Appointment completed with prescription');
-                setCompleteDialogOpen(false);
+                setPrescriptionDialogOpen(false);
                 setPrescriptionData({
                   diagnosis: '',
                   medicines: [{ name: '', dosage: '', frequency: '', duration: '' }],
@@ -704,7 +796,7 @@ const Dashboard = () => {
               }
             }}
           >
-            Complete With Prescription
+            Complete
           </Button>
         </DialogActions>
       </Dialog>

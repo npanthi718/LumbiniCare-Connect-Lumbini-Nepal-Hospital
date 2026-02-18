@@ -134,25 +134,42 @@ router.get('/', authenticateToken, async (req, res) => {
                 })
                 .sort({ date: -1 });
 
-            // Transform the data
-            appointments = appointments.map(appointment => {
-                const doctor = appointment.doctorId;
-                return {
-                    ...appointment.toObject(),
-                    doctorId: {
-                        ...doctor,
-                        name: doctor?.userId?.name || 'Doctor Not Available',
-                        email: doctor?.userId?.email || 'Email Not Available',
-                        phone: doctor?.userId?.phone || 'Phone Not Available',
-                        department: {
-                            name: doctor?.department?.name || 'Department Not Available'
-                        },
-                        specialization: {
-                            name: doctor?.specialization?.name || 'Specialization Not Available'
-                        }
+            const now = new Date();
+            for (const apt of appointments) {
+                if (apt.status !== 'completed' && apt.status !== 'cancelled') {
+                    const d = new Date(apt.date);
+                    const [h, m] = String(apt.timeSlot || '00:00').split(':').map(Number);
+                    d.setHours(h || 0, m || 0, 0, 0);
+                    if (d < now) {
+                        apt.status = 'cancelled';
+                        apt.cancellationReason = 'Patient did not come for checkup';
+                        await apt.save();
                     }
-                };
-            });
+                }
+            }
+            appointments = (await Appointment.find({ patientId: req.user._id })
+                .populate({
+                    path: 'doctorId',
+                    populate: [
+                        { path: 'userId', select: 'name email phone' },
+                        { path: 'department', select: 'name' },
+                        { path: 'specialization', select: 'name' }
+                    ]
+                })
+                .sort({ date: -1 })).map(appointment => {
+                    const doctor = appointment.doctorId;
+                    return {
+                        ...appointment.toObject(),
+                        doctorId: {
+                            ...doctor,
+                            name: doctor?.userId?.name || 'Doctor Not Available',
+                            email: doctor?.userId?.email || 'Email Not Available',
+                            phone: doctor?.userId?.phone || 'Phone Not Available',
+                            department: { name: doctor?.department?.name || 'Department Not Available' },
+                            specialization: { name: doctor?.specialization?.name || 'Specialization Not Available' }
+                        }
+                    };
+                });
         } else if (req.user.role === 'doctor') {
             const doctor = await Doctor.findOne({ userId: req.user._id });
             if (!doctor) {

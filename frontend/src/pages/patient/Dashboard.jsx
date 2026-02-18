@@ -22,11 +22,13 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  TextField,
   CircularProgress,
   Alert,
   Avatar,
   Chip,
   IconButton,
+  Rating,
 } from '@mui/material';
 import { Close } from '@mui/icons-material';
 import { format } from 'date-fns';
@@ -67,6 +69,10 @@ const Dashboard = () => {
   const [success, setSuccess] = useState(null);
   const [viewAppointmentDialog, setViewAppointmentDialog] = useState(false);
   const [selectedViewAppointment, setSelectedViewAppointment] = useState(null);
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+  const [reviewForAppointment, setReviewForAppointment] = useState(null);
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewComment, setReviewComment] = useState('');
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -147,8 +153,18 @@ const Dashboard = () => {
   };
 
   const renderAppointments = () => {
-    // Filter appointments by status
-    const approvedAppointments = appointments.filter(apt => apt.status === 'confirmed');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayAppointments = appointments.filter(apt => {
+      const d = new Date(apt.date);
+      d.setHours(0, 0, 0, 0);
+      return d.getTime() === today.getTime() && apt.status !== 'cancelled' && apt.status !== 'completed';
+    });
+    const approvedAppointments = appointments.filter(apt => {
+      const d = new Date(apt.date);
+      d.setHours(0, 0, 0, 0);
+      return apt.status === 'confirmed' && d.getTime() > today.getTime();
+    });
     const pendingAppointments = appointments.filter(apt => apt.status === 'pending');
     const completedAppointments = appointments.filter(apt => apt.status === 'completed');
     const cancelledAppointments = appointments.filter(apt => apt.status === 'cancelled');
@@ -208,9 +224,22 @@ const Dashboard = () => {
                         variant="outlined"
                         size="small"
                         onClick={() => handleViewAppointment(appointment)}
+                        sx={{ mr: 1 }}
                       >
                         View Details
                       </Button>
+                      {title.includes('Completed') && (
+                        <Button
+                          variant="contained"
+                          size="small"
+                          onClick={() => {
+                            setReviewForAppointment(appointment);
+                            setReviewDialogOpen(true);
+                          }}
+                        >
+                          Rate Doctor
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))
@@ -223,8 +252,9 @@ const Dashboard = () => {
 
     return (
       <>
+        {renderAppointmentSection(todayAppointments, 'Today\'s Appointments', 'today-appointments')}
+        {renderAppointmentSection(approvedAppointments, 'Upcoming Approved Appointments', 'approved-appointments')}
         {renderAppointmentSection(pendingAppointments, 'Pending Appointments', 'pending-appointments')}
-        {renderAppointmentSection(approvedAppointments, 'Approved Appointments', 'approved-appointments')}
         {renderAppointmentSection(completedAppointments, 'Completed Appointments', 'completed-appointments')}
         {renderAppointmentSection(cancelledAppointments, 'Cancelled Appointments', 'cancelled-appointments')}
       </>
@@ -294,6 +324,52 @@ const Dashboard = () => {
         <Box>
           {renderAppointments()}
           {renderAppointmentDialog()}
+          <Dialog open={reviewDialogOpen} onClose={() => setReviewDialogOpen(false)} maxWidth="sm" fullWidth>
+            <DialogTitle>Rate Your Appointment</DialogTitle>
+            <DialogContent>
+              <Box sx={{ my: 2 }}>
+                <Rating
+                  value={reviewRating}
+                  onChange={(_, newValue) => setReviewRating(newValue || 0)}
+                />
+              </Box>
+              <TextField
+                label="Review (optional)"
+                fullWidth
+                multiline
+                minRows={3}
+                value={reviewComment}
+                onChange={(e) => setReviewComment(e.target.value)}
+              />
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setReviewDialogOpen(false)}>Cancel</Button>
+              <Button
+                variant="contained"
+                onClick={async () => {
+                  if (!reviewForAppointment || !reviewRating) return;
+                  try {
+                    await api.post('/reviews', {
+                      appointmentId: reviewForAppointment._id,
+                      rating: reviewRating,
+                      comment: reviewComment
+                    });
+                    setSuccess('Review submitted');
+                  } catch (err) {
+                    setError(err.response?.data?.message || 'Failed to submit review');
+                  } finally {
+                    setReviewDialogOpen(false);
+                    setReviewForAppointment(null);
+                    setReviewRating(0);
+                    setReviewComment('');
+                  }
+                }}
+                disabled={!reviewRating}
+              >
+                Submit Review
+              </Button>
+            </DialogActions>
+          </Dialog>
         </Box>
       )}
 

@@ -48,6 +48,10 @@ const doctorSchema = new mongoose.Schema({
     required: true,
     min: 0
   },
+  emergencyAvailable: {
+    type: Boolean,
+    default: false
+  },
   isApproved: {
     type: Boolean,
     default: false

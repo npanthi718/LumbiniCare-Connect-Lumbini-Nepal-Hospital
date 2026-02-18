@@ -61,13 +61,22 @@ const Login = () => {
     setSuccess('');
 
     try {
-      await login(formData.email, formData.password);
+      const userData = await login(formData.email, formData.password);
       setSuccess('Login successful!');
-
-      const redirectTo = location.state?.from || '/';
+      const fromPath =
+        typeof location.state?.from === 'string'
+          ? location.state?.from
+          : location.state?.from?.pathname;
+      const shouldReturnToFlow =
+        fromPath &&
+        (fromPath.startsWith('/appointments') ||
+         fromPath.startsWith('/doctors') ||
+         fromPath.startsWith('/prescriptions'));
+      const defaultDashboard = `/${userData?.role || 'patient'}/dashboard`;
+      const target = shouldReturnToFlow ? fromPath : defaultDashboard;
       setTimeout(() => {
-        navigate(redirectTo);
-      }, 800);
+        navigate(target, { replace: true });
+      }, 400);
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed');
     }

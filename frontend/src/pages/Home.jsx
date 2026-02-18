@@ -24,13 +24,10 @@ import {
   People,
   AccessTime,
   MedicalServices,
-  CalendarToday,
-  Assignment,
-  History,
   Star,
 } from "@mui/icons-material";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
+import { } from "react-router-dom";
+import { } from "../context/AuthContext";
 import api from "../services/api";
 
 const features = [
@@ -59,59 +56,45 @@ const features = [
 
 const Home = () => {
   const theme = useTheme();
-  const navigate = useNavigate();
-  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState(0);
   const [doctors, setDoctors] = useState([]);
-  const [userAppointments] = useState([]);
-  const [prescriptions] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Remain on Home even when logged in; dashboard link in Navbar handles role-specific navigation
+  // Home remains public even when logged in; login page handles initial redirect
 
   useEffect(() => {
     const fetchData = async () => {
-      if (!user) {
-        try {
-          const response = await api.get("/doctors");
-          const items = Array.isArray(response.data)
-            ? response.data
-            : (response.data?.items || []);
-          const normalized = items.map((d) => ({
-            id: d._id,
-            name: d.userId?.name || d.user?.name || "Unknown Doctor",
-            image: d.userId?.profilePhoto || d.user?.profilePhoto || "",
-            specialization: d.specialization || d.department?.name || "N/A",
-            description: d.department?.description || "",
-            rating: d.rating || 0,
-            reviewCount: d.totalReviews || 0,
-          }));
-          setDoctors(normalized);
-        } catch (error) {
-          console.error("Error fetching doctors:", error);
-        }
+      try {
+        const response = await api.get("/doctors");
+        const items = Array.isArray(response.data)
+          ? response.data
+          : (response.data?.items || []);
+        const normalized = items.map((d) => ({
+          id: d._id,
+          name: d.userId?.name || d.user?.name || "Unknown Doctor",
+          image: d.userId?.profilePhoto || d.user?.profilePhoto || "",
+          specialization: d.specialization || d.department?.name || "N/A",
+          description: d.department?.description || "",
+          rating: d.rating || 0,
+          reviewCount: d.totalReviews || 0,
+        }));
+        setDoctors(normalized);
+      } catch (error) {
+        console.error("Error fetching doctors:", error);
       }
       setLoading(false);
     };
 
     fetchData();
-  }, [user]);
+  }, []);
 
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
   };
 
-  const handleBookAppointment = () => {
-    if (!user) {
-      navigate("/login");
-    } else {
-      navigate("/appointments/book");
-    }
-  };
+  // Booking CTA removed from Home; use Appointments page
 
-  if (user) {
-    return null;
-  }
+  // Always render Home
 
   if (loading) {
     return (
@@ -126,73 +109,7 @@ const Home = () => {
     );
   }
 
-  const renderUserDashboard = () => (
-    <Box sx={{ mt: 4 }}>
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h5" gutterBottom sx={{ fontWeight: 600 }}>
-          Your Dashboard
-        </Typography>
-        <Grid container spacing={3}>
-          <Grid item xs={12} md={4}>
-            <Card>
-              <CardContent>
-                <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
-                  <CalendarToday color="primary" sx={{ mr: 1 }} />
-                  <Typography variant="h6">Upcoming Appointments</Typography>
-                </Box>
-                <Typography variant="h4" color="primary">
-                  {
-                    userAppointments.filter(
-                      (apt) => new Date(apt.date) > new Date()
-                    ).length
-                  }
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={12} md={4}>
-            <Card>
-              <CardContent>
-                <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
-                  <Assignment color="secondary" sx={{ mr: 1 }} />
-                  <Typography variant="h6">Prescriptions</Typography>
-                </Box>
-                <Typography variant="h4" color="secondary">
-                  {prescriptions.length}
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={12} md={4}>
-            <Card>
-              <CardContent>
-                <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
-                  <History color="info" sx={{ mr: 1 }} />
-                  <Typography variant="h6">Past Appointments</Typography>
-                </Box>
-                <Typography variant="h4" color="info.main">
-                  {
-                    userAppointments.filter(
-                      (apt) => new Date(apt.date) < new Date()
-                    ).length
-                  }
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
-      </Paper>
-      <Button
-        variant="contained"
-        color="primary"
-        size="large"
-        onClick={handleBookAppointment}
-        sx={{ mb: 4 }}
-      >
-        Book New Appointment
-      </Button>
-    </Box>
-  );
+  // User dashboard cards removed from Home; dashboards live on role-specific pages
 
   const renderHospitalInfo = () => (
     <Box>
@@ -474,7 +391,7 @@ const Home = () => {
                 variant="contained"
                 color="secondary"
                 size="large"
-                onClick={() => navigate("/login")}
+                onClick={() => { window.location.href = "/login"; }}
                 sx={{ mt: 4 }}
               >
                 Book Appointment
@@ -505,7 +422,6 @@ const Home = () => {
 
       {/* Main Content */}
       <Container maxWidth="lg" sx={{ mb: 8 }}>
-        {user ? renderUserDashboard() : null}
         {renderHospitalInfo()}
       </Container>
     </Box>

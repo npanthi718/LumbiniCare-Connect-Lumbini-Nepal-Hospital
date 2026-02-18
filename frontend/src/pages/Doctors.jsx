@@ -28,6 +28,8 @@ import {
   ListItemText,
   Divider,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
+import useMediaQuery from "@mui/material/useMediaQuery";
 import {
   Search as SearchIcon,
   Close as CloseIcon,
@@ -40,6 +42,8 @@ import { useNavigate, useLocation } from "react-router-dom";
 const Doctors = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const theme = useTheme();
+  const fullScreen = useMediaQuery(theme.breakpoints.down('sm'));
   const [doctors, setDoctors] = useState([]);
   const [filteredDoctors, setFilteredDoctors] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -51,6 +55,10 @@ const Doctors = () => {
   const [departments, setDepartments] = useState([]);
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [openDialog, setOpenDialog] = useState(false);
+  const [reviews, setReviews] = useState([]);
+  const [editingReview, setEditingReview] = useState(null);
+  const [editRating, setEditRating] = useState(0);
+  const [editComment, setEditComment] = useState('');
 
   useEffect(() => {
     const fetchDoctors = async () => {
@@ -155,6 +163,14 @@ const Doctors = () => {
   const handleViewDetails = (doctor) => {
     setSelectedDoctor(doctor);
     setOpenDialog(true);
+    (async () => {
+      try {
+        const res = await api.get(`/reviews/doctor/${doctor._id}`);
+        setReviews(Array.isArray(res.data) ? res.data : []);
+      } catch {
+        setReviews([]);
+      }
+    })();
   };
 
   const handleCloseDialog = () => {
@@ -420,7 +436,7 @@ const Doctors = () => {
         )}
       </Grid>
 
-      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>
+      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth fullScreen={fullScreen}>
         <DialogTitle>
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <Typography variant="h6">Doctor Details</Typography>
@@ -468,6 +484,12 @@ const Doctors = () => {
                       />
                     </ListItem>
                   ))}
+                  <ListItem>
+                    <ListItemText
+                      primary="Available for Emergency"
+                      secondary={selectedDoctor.emergencyAvailable ? "Yes" : "No"}
+                    />
+                  </ListItem>
                 </List>
                 <Typography variant="subtitle1" gutterBottom sx={{ mt: 2 }}>
                   Languages
@@ -477,6 +499,53 @@ const Doctors = () => {
                     <Chip key={idx} label={lang} size="small" />
                   ))}
                 </Box>
+              </Grid>
+              <Grid item xs={12}>
+                <Divider sx={{ my: 2 }} />
+                <Typography variant="h6" gutterBottom>Reviews</Typography>
+                {reviews.length === 0 ? (
+                  <Typography color="text.secondary">No reviews yet</Typography>
+                ) : (
+                  <List>
+                    {reviews.map((r) => (
+                      <ListItem key={r._id} alignItems="flex-start" sx={{ px: 0 }}>
+                        <ListItemIcon>
+                          <Rating value={Number(r.rating)} readOnly />
+                        </ListItemIcon>
+                        <ListItemText
+                          primary={r.comment || 'No comment'}
+                          secondary={`${new Date(r.createdAt).toLocaleDateString()}`}
+                        />
+                        <Box sx={{ display: 'flex', gap: 1 }}>
+                          <Button
+                            size="small"
+                            onClick={() => {
+                              setEditingReview(r);
+                              setEditRating(Number(r.rating) || 0);
+                              setEditComment(r.comment || '');
+                            }}
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            size="small"
+                            color="error"
+                            onClick={async () => {
+                              try {
+                                await api.delete(`/reviews/${r._id}`);
+                                setReviews((prev) => prev.filter((x) => x._id !== r._id));
+                              } catch (err) {
+                                setError(err.response?.data?.message || 'Failed to delete review');
+                              }
+                            }}
+                          >
+                            Delete
+                          </Button>
+                        </Box>
+                      </ListItem>
+                    ))}
+                  </List>
+                )}
               </Grid>
             </Grid>
           ) : (
@@ -490,6 +559,41 @@ const Doctors = () => {
               Book Appointment
             </Button>
           )}
+        </DialogActions>
+      </Dialog>
+      <Dialog open={!!editingReview} onClose={() => setEditingReview(null)} maxWidth="sm" fullWidth fullScreen={fullScreen}>
+        <DialogTitle>Edit Review</DialogTitle>
+        <DialogContent>
+          <Box sx={{ my: 2 }}>
+            <Rating value={editRating} onChange={(_, v) => setEditRating(v || 0)} />
+          </Box>
+          <TextField
+            label="Comment"
+            fullWidth
+            multiline
+            minRows={3}
+            value={editComment}
+            onChange={(e) => setEditComment(e.target.value)}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditingReview(null)}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={async () => {
+              if (!editingReview) return;
+              try {
+                await api.patch(`/reviews/${editingReview._id}`, { rating: editRating, comment: editComment });
+                setReviews((prev) => prev.map((x) => x._id === editingReview._id ? { ...x, rating: editRating, comment: editComment } : x));
+                setEditingReview(null);
+              } catch (err) {
+                setError(err.response?.data?.message || 'Failed to update review');
+              }
+            }}
+            disabled={!editRating}
+          >
+            Save
+          </Button>
         </DialogActions>
       </Dialog>
     </Container>
