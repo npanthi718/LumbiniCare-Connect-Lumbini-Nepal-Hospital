@@ -204,13 +204,20 @@ This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) f
 
 ---
 
-## 💬 **Contact**
+## 💬 **Owner & Contact**
 
-For any inquiries or support, please contact us at **npanthi718@gmail.com**.
+**Owner:** Sushil Panthi  
+**Phone:** +919359029905 / +9779823009467  
+**WhatsApp:** +9779823009467  
+**Web Portfolio:** https://www.sushilpanthi.com
 
 ---
 
 ### 🌟 **Star this repository if you found it helpful!**
+
+### 📘 Additional READMEs
+- Frontend docs: [frontend/README.md](frontend/README.md)
+- Backend docs: [backend/README.md](backend/README.md)
 
 ---
 

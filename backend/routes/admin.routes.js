@@ -174,6 +174,11 @@ router.patch('/appointments/:id/status', async (req, res) => {
       return res.status(400).json({ message: 'Invalid status' });
     }
 
+    // Prevent cancelling completed appointments
+    if (status === 'cancelled' && appointment.status === 'completed') {
+      return res.status(400).json({ message: 'Cannot cancel a completed appointment' });
+    }
+
     // Require cancellation reason when cancelling
     if (status === 'cancelled' && !cancellationReason) {
       return res.status(400).json({ message: 'Cancellation reason is required' });
@@ -216,6 +221,36 @@ router.patch('/appointments/:id/status', async (req, res) => {
       message: 'Error updating appointment status',
       error: error.message
     });
+  }
+});
+
+// Delete appointment (admin only)
+router.delete('/appointments/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const apt = await Appointment.findById(id);
+    if (!apt) {
+      return res.status(404).json({ message: 'Appointment not found' });
+    }
+    await Appointment.findByIdAndDelete(id);
+    res.json({ message: 'Appointment deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error deleting appointment', error: error.message });
+  }
+});
+
+// Delete prescription (admin only)
+router.delete('/prescriptions/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const p = await Prescription.findById(id);
+    if (!p) {
+      return res.status(404).json({ message: 'Prescription not found' });
+    }
+    await Prescription.findByIdAndDelete(id);
+    res.json({ message: 'Prescription deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error deleting prescription', error: error.message });
   }
 });
 

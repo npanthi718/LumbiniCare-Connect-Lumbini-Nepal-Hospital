@@ -1,10 +1,22 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Box, Typography } from '@mui/material';
 import { LocalHospital } from '@mui/icons-material';
 
 const SplashLoader = () => {
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    if (document.activeElement && typeof document.activeElement.blur === 'function') {
+      document.activeElement.blur();
+    }
+    if (containerRef.current) {
+      containerRef.current.focus();
+    }
+  }, []);
+
   return (
     <Box
+      ref={containerRef}
       sx={{
         display: 'flex',
         alignItems: 'center',
@@ -14,6 +26,9 @@ const SplashLoader = () => {
         bgcolor: 'background.default',
         color: 'text.primary',
       }}
+      tabIndex={0}
+      role="status"
+      aria-live="polite"
     >
       <Box
         sx={{

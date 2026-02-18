@@ -32,33 +32,11 @@ import {
 } from '@mui/material';
 import { Close } from '@mui/icons-material';
 import { format } from 'date-fns';
-
-// Add request interceptor to add token
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
-
-// Add response interceptor for better error handling
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      window.location.href = '/login';
-    }
-    return Promise.reject(error);
-  }
-);
+import { useNavigate } from 'react-router-dom';
 
 const Dashboard = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState(0);
   const [appointments, setAppointments] = useState([]);
   const [prescriptions, setPrescriptions] = useState([]);
@@ -240,6 +218,26 @@ const Dashboard = () => {
                           Rate Doctor
                         </Button>
                       )}
+                      {title.includes('Completed') && (
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          sx={{ ml: 1 }}
+                          onClick={() => {
+                            navigate('/appointments', {
+                              state: {
+                                doctorId: appointment.doctorId?._id,
+                                doctorDetails: {
+                                  name: appointment.doctorId?.name,
+                                  department: appointment.doctorId?.department?.name
+                                }
+                              }
+                            });
+                          }}
+                        >
+                          Re-book
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))
@@ -314,6 +312,51 @@ const Dashboard = () => {
           {success}
         </Alert>
       )}
+
+      <Grid container spacing={3} sx={{ mb: 3 }}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ cursor: 'pointer' }} onClick={() => setActiveTab(0)}>
+            <CardContent>
+              <Typography color="text.secondary" gutterBottom>Appointments</Typography>
+              <Typography variant="h5">{appointments.length}</Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ cursor: 'pointer' }} onClick={() => setActiveTab(1)}>
+            <CardContent>
+              <Typography color="text.secondary" gutterBottom>Prescriptions</Typography>
+              <Typography variant="h5">{prescriptions.length}</Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ cursor: 'pointer' }} onClick={() => setActiveTab(0)}>
+            <CardContent>
+              <Typography color="text.secondary" gutterBottom>Today</Typography>
+              <Typography variant="h5">
+                {appointments.filter(apt => {
+                  const d = new Date(apt.date);
+                  const t = new Date();
+                  d.setHours(0,0,0,0);
+                  t.setHours(0,0,0,0);
+                  return d.getTime() === t.getTime() && apt.status !== 'cancelled' && apt.status !== 'completed';
+                }).length}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ cursor: 'pointer' }} onClick={() => setActiveTab(0)}>
+            <CardContent>
+              <Typography color="text.secondary" gutterBottom>Completed</Typography>
+              <Typography variant="h5">
+                {appointments.filter(apt => apt.status === 'completed').length}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
 
       <Tabs value={activeTab} onChange={handleTabChange} sx={{ mb: 3 }}>
         <Tab label="Appointments" />

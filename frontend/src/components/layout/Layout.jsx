@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Box, Backdrop, CircularProgress, Typography } from '@mui/material';
 import { Outlet } from 'react-router-dom';
 import Navbar from './Navbar';
@@ -7,6 +7,7 @@ import Footer from './Footer';
 const Layout = () => {
   const [globalLoading, setGlobalLoading] = useState(false);
   const [requestCount, setRequestCount] = useState(0);
+  const mainRef = useRef(null);
 
   useEffect(() => {
     const handler = (e) => {
@@ -16,6 +17,21 @@ const Layout = () => {
     window.addEventListener('global-loading', handler);
     return () => window.removeEventListener('global-loading', handler);
   }, []);
+
+  useEffect(() => {
+    const el = mainRef.current;
+    if (!el) return;
+    if (globalLoading) {
+      el.setAttribute('inert', '');
+      el.setAttribute('aria-busy', 'true');
+      if (document.activeElement && typeof document.activeElement.blur === 'function') {
+        document.activeElement.blur();
+      }
+    } else {
+      el.removeAttribute('inert');
+      el.removeAttribute('aria-busy');
+    }
+  }, [globalLoading]);
 
   return (
     <Box
@@ -29,6 +45,7 @@ const Layout = () => {
       <Navbar />
       <Box
         component="main"
+        ref={mainRef}
         sx={{
           flexGrow: 1,
           py: 3,

@@ -10,32 +10,11 @@ import {
   Alert,
 } from '@mui/material';
 import { Link, useNavigate } from 'react-router-dom';
-import api from '../services/api';
+// api imported indirectly through AuthContext; explicit axios instance not used here
 import { useAuth } from '../context/AuthContext';
 import { useLocation } from 'react-router-dom';
 
-// Add request interceptor to add token
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
-
-// Add response interceptor for better error handling
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-    }
-    return Promise.reject(error);
-  }
-);
+// Interceptors configured globally in services/api.js
 
 const Login = () => {
   const navigate = useNavigate();

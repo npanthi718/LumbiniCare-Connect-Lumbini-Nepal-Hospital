@@ -175,7 +175,7 @@ router.get("/appointments", authenticateToken, async (req, res) => {
     const appointments = await Appointment.find({ doctorId: doctor._id })
       .populate({
         path: "patientId",
-        select: "name email phoneNumber profilePhoto",
+        select: "name email phone profilePhoto",
       })
       .populate({
         path: "doctorId",
@@ -267,7 +267,7 @@ router.patch("/appointments/:id/status", authenticateToken, async (req, res) => 
     await appointment.populate([
       {
         path: "patientId",
-        select: "name email phoneNumber profilePhoto"
+        select: "name email phone profilePhoto"
       },
       {
         path: "doctorId",
@@ -400,7 +400,7 @@ router.put("/:id/profile", authenticateToken, isAdmin, async (req, res) => {
     const updatedDoctor = await Doctor.findById(doctor._id)
       .populate({
         path: "userId",
-        select: "name email profilePhoto phoneNumber",
+        select: "name email profilePhoto phone",
       })
       .populate("department")
       .lean();
@@ -441,7 +441,7 @@ router.put("/me/profile", authenticateToken, async (req, res) => {
     }
     await doctor.save();
     const updated = await Doctor.findById(doctor._id)
-      .populate({ path: "userId", select: "name email profilePhoto phoneNumber" })
+      .populate({ path: "userId", select: "name email profilePhoto phone" })
       .populate("department")
       .lean();
     res.json(updated);
@@ -459,7 +459,7 @@ router.get("/me", authenticateToken, async (req, res) => {
     let doctor = null;
     try {
       doctor = await Doctor.findOne({ userId: req.user._id })
-        .populate({ path: "userId", select: "name email profilePhoto phoneNumber" })
+        .populate({ path: "userId", select: "name email profilePhoto phone" })
         .populate({ path: "department", select: "name" })
         .lean();
     } catch (populateErr) {

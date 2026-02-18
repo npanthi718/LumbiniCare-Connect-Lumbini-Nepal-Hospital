@@ -32,11 +32,12 @@ import {
   Chip,
   CircularProgress,
   DialogContentText,
+  Skeleton,
+  Autocomplete,
 } from "@mui/material";
 import Switch from "@mui/material/Switch";
 import { useTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
-import Autocomplete from "@mui/material/Autocomplete";
 import {
   LocalHospital as HospitalIcon,
   Event as EventIcon,
@@ -47,6 +48,7 @@ import {
   Cancel as CancelIcon,
   Close as CloseIcon,
   Visibility as VisibilityIcon,
+  Edit as EditIcon,
   History as HistoryIcon,
   Email as EmailIcon,
   CheckCircle,
@@ -252,22 +254,15 @@ const AdminDashboard = () => {
                 />
               </Grid>
               <Grid item xs={12} md={6}>
-                <FormControl fullWidth>
-                  <InputLabel id="department-label">Department</InputLabel>
-                  <Select
-                    labelId="department-label"
-                    value={doctorForm.department}
-                    onChange={(e) => setDoctorForm({ ...doctorForm, department: e.target.value })}
-                    displayEmpty
-                    label="Department"
-                    size="small"
-                  >
-                    <MenuItem value=""><em>Select Department</em></MenuItem>
-                    {deptList.map((d) => (
-                      <MenuItem key={d._id} value={d._id}>{d.name}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+                <Autocomplete
+                  options={deptList}
+                  getOptionLabel={(option) => option?.name || ''}
+                  value={deptList.find(d => d._id === doctorForm.department) || null}
+                  onChange={(_, newValue) => setDoctorForm({ ...doctorForm, department: newValue?._id || '' })}
+                  renderInput={(params) => (
+                    <TextField {...params} label="Department" size="small" fullWidth />
+                  )}
+                />
               </Grid>
               <Grid item xs={12}>
                 <TextField
@@ -349,15 +344,17 @@ const AdminDashboard = () => {
                         />
                       </Grid>
                       <Grid item xs={12} md={1}>
-                        <Button
+                        <IconButton
                           color="error"
+                          size="small"
                           onClick={() => {
                             const education = doctorForm.education.filter((_, i) => i !== idx);
                             setDoctorForm({ ...doctorForm, education: education.length ? education : [{ degree: '', institution: '', year: '' }] });
                           }}
+                          aria-label="Delete education"
                         >
-                          Remove
-                        </Button>
+                          <Delete />
+                        </IconButton>
                       </Grid>
                     </Grid>
                   ))}
@@ -948,6 +945,13 @@ const AdminDashboard = () => {
           </Button>
         </Box>
       </Box>
+      {loading && (
+        <Box sx={{ px: 2, pb: 2 }}>
+          <Skeleton height={40} />
+          <Skeleton height={40} />
+          <Skeleton height={40} />
+        </Box>
+      )}
       <Table>
         <TableHead>
           <TableRow>
@@ -1041,7 +1045,7 @@ const AdminDashboard = () => {
                           setEditDoctorDialogOpen(true);
                         }}
                       >
-                        <VisibilityIcon />
+                        <EditIcon />
                       </IconButton>
                     </Tooltip>
                   </TableCell>
@@ -1092,6 +1096,13 @@ const AdminDashboard = () => {
             Next
           </Button>
         </Box>
+        {loading && (
+          <Box sx={{ px: 2, pb: 2 }}>
+            <Skeleton height={40} />
+            <Skeleton height={40} />
+            <Skeleton height={40} />
+          </Box>
+        )}
         <Table>
           <TableHead>
             <TableRow>
@@ -1141,7 +1152,7 @@ const AdminDashboard = () => {
                         size="small"
                         onClick={() => handleViewPatient(patient)}
                       >
-                        <VisibilityIcon />
+                        <EditIcon />
                       </IconButton>
                     </Tooltip>
                     <Tooltip title="View History">
@@ -1173,7 +1184,7 @@ const AdminDashboard = () => {
                           setEditPatientDialogOpen(true);
                         }}
                       >
-                        <VisibilityIcon />
+                        <EditIcon />
                       </IconButton>
                     </Tooltip>
                   </Box>
@@ -1217,6 +1228,31 @@ const AdminDashboard = () => {
           onClick={() => handleViewAppointment(appointment)}
         >
           <Assignment />
+        </IconButton>
+      </Tooltip>
+      <Tooltip title="Delete Appointment">
+        <IconButton
+          size="small"
+          color="error"
+          onClick={async () => {
+            try {
+              await api.delete(`/admin/appointments/${appointment._id}`);
+              setSuccess('Appointment deleted');
+              setAppointments(prev => ({
+                ...prev,
+                all: prev.all.filter(a => a._id !== appointment._id),
+                today: prev.today.filter(a => a._id !== appointment._id),
+                upcoming: prev.upcoming.filter(a => a._id !== appointment._id),
+                past: prev.past.filter(a => a._id !== appointment._id),
+                completed: prev.completed.filter(a => a._id !== appointment._id),
+                cancelled: prev.cancelled.filter(a => a._id !== appointment._id)
+              }));
+            } catch (err) {
+              setError(err.response?.data?.message || 'Failed to delete appointment');
+            }
+          }}
+        >
+          <Delete />
         </IconButton>
       </Tooltip>
     </Box>
@@ -1644,6 +1680,29 @@ const AdminDashboard = () => {
         <Button onClick={() => setOpenCancelDialog(true)} color="error">
           Cancel Appointment
         </Button>
+        {selectedAppointment && (
+          <Button
+            onClick={async () => {
+              try {
+                await api.delete(`/admin/appointments/${selectedAppointment._id}`);
+                setSuccess('Appointment deleted');
+                setViewAppointmentDialog(false);
+                setAppointments(prev => ({
+                  ...prev,
+                  all: prev.all.filter(a => a._id !== selectedAppointment._id),
+                  today: prev.today.filter(a => a._id !== selectedAppointment._id),
+                  upcoming: prev.upcoming.filter(a => a._id !== selectedAppointment._id),
+                  past: prev.past.filter(a => a._id !== selectedAppointment._id)
+                }));
+              } catch (err) {
+                setError(err.response?.data?.message || 'Failed to delete appointment');
+              }
+            }}
+            color="error"
+          >
+            Delete Appointment
+          </Button>
+        )}
         <Button onClick={() => setViewAppointmentDialog(false)} color="primary" variant="contained">
           Close
         </Button>
@@ -1797,16 +1856,39 @@ const AdminDashboard = () => {
                             </Grid>
                           )}
                           <Grid item xs={12}>
-                            <Button
-                              variant="outlined"
-                              startIcon={<VisibilityIcon />}
-                              onClick={() => {
-                                setSelectedPrescription(history.prescription);
-                                setPrescriptionDialogOpen(true);
-                              }}
-                            >
-                              View Full Prescription
-                            </Button>
+                            <Box sx={{ display: 'flex', gap: 1 }}>
+                              <Button
+                                variant="outlined"
+                                startIcon={<VisibilityIcon />}
+                                onClick={() => {
+                                  setSelectedPrescription(history.prescription);
+                                  setPrescriptionDialogOpen(true);
+                                }}
+                              >
+                                View Full Prescription
+                              </Button>
+                              <Tooltip title="Delete Prescription">
+                                <IconButton
+                                  size="small"
+                                  color="error"
+                                  onClick={async () => {
+                                    try {
+                                      await api.delete(`/admin/prescriptions/${history.prescription._id}`);
+                                      setSuccess('Prescription deleted');
+                                      setPatientHistory(prev => prev.map(h => ({
+                                        ...h,
+                                        prescription: h.prescription && h.prescription._id === history.prescription._id ? null : h.prescription
+                                      })));
+                                    } catch (err) {
+                                      setError(err.response?.data?.message || 'Failed to delete prescription');
+                                    }
+                                  }}
+                                  aria-label="Delete prescription"
+                                >
+                                  <Delete />
+                                </IconButton>
+                              </Tooltip>
+                            </Box>
                           </Grid>
                         </Grid>
                       </Grid>
@@ -1948,6 +2030,23 @@ const renderPrescriptionDialog = () => (
       )}
     </DialogContent>
     <DialogActions>
+      {selectedPrescription && (
+        <Button
+          color="error"
+          onClick={async () => {
+            try {
+              await api.delete(`/admin/prescriptions/${selectedPrescription._id}`);
+              setSuccess('Prescription deleted');
+              setSelectedPrescription(null);
+              setPrescriptionDialogOpen(false);
+            } catch (err) {
+              setError(err.response?.data?.message || 'Failed to delete prescription');
+            }
+          }}
+        >
+          Delete Prescription
+        </Button>
+      )}
       <Button onClick={() => setPrescriptionDialogOpen(false)}>
         Close
       </Button>
@@ -2159,7 +2258,9 @@ return (
       <Tabs
         value={activeTab}
         onChange={handleTabChange}
-        sx={{ borderBottom: 1, borderColor: "divider" }}
+        sx={{ borderBottom: 1, borderColor: "divider", position: 'sticky', top: 0, zIndex: (theme) => theme.zIndex.appBar, bgcolor: 'background.paper' }}
+        variant="scrollable"
+        scrollButtons="auto"
       >
         <Tab label="Doctors" />
         <Tab label="Patients" />
@@ -2260,20 +2361,15 @@ return (
               <Typography variant="subtitle1">Professional Information</Typography>
             </Grid>
             <Grid item xs={12}>
-              <FormControl fullWidth>
-                <InputLabel id="edit-department-label">Department</InputLabel>
-                <Select
-                  labelId="edit-department-label"
-                  label="Department"
-                  value={editDoctorData.department}
-                  onChange={(e) => setEditDoctorData({ ...editDoctorData, department: e.target.value })}
-                >
-                  <MenuItem value=""><em>Select Department</em></MenuItem>
-                  {deptList.map((d) => (
-                    <MenuItem key={d._id} value={d._id}>{d.name}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+              <Autocomplete
+                options={deptList}
+                getOptionLabel={(option) => option?.name || ''}
+                value={deptList.find(d => d._id === editDoctorData.department) || null}
+                onChange={(_, newValue) => setEditDoctorData({ ...editDoctorData, department: newValue?._id || '' })}
+                renderInput={(params) => (
+                  <TextField {...params} label="Department" fullWidth />
+                )}
+              />
             </Grid>
             <Grid item xs={12}>
               <TextField label="Specialization" fullWidth value={editDoctorData.specialization} onChange={(e) => setEditDoctorData({ ...editDoctorData, specialization: e.target.value })} />
