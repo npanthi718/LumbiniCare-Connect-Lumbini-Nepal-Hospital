@@ -1,8 +1,10 @@
 import axios from 'axios';
 
 const baseURL =
-  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE) ||
-  '/api';
+  (typeof import.meta !== 'undefined' && (
+    import.meta.env?.VITE_API_BASE ||
+    import.meta.env?.VITE_APP_API_BASE
+  )) || '/api';
 
 const api = axios.create({
   baseURL,
@@ -10,6 +12,13 @@ const api = axios.create({
     'Content-Type': 'application/json',
   }
 });
+
+try {
+  console.log('API baseURL:', baseURL);
+} catch (e) {
+  // eslint-disable-next-line no-console
+  console.warn('API baseURL log failed');
+}
 
 let pendingRequests = 0;
 const emitLoadingEvent = () => {

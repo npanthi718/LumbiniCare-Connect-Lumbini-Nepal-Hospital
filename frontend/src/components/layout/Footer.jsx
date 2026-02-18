@@ -46,7 +46,7 @@ const Footer = () => {
               <IconButton color="inherit" size="small" href='https://www.facebook.com/sushil.panthi.900' target='_blank'>
                 <Facebook />
               </IconButton>
-              <IconButton color="inherit" size="small" href='https://www.instagram.com/official_sushil_panthi/?hl=en' target='_blank'>
+              <IconButton color="inherit" size="small" href='https://www.instagram.com/npanthi718/' target='_blank'>
                 <Instagram />
               </IconButton>
               <IconButton color="inherit" size="small" href='https://www.linkedin.com/in/sushilpanthi/' target='_blank'>
