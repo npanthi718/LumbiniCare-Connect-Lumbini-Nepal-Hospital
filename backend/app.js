@@ -2,6 +2,8 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
+const { execSync } = require('child_process');
 const jwt = require('jsonwebtoken');
 const morgan = require('morgan');
 const helmet = require('helmet');
@@ -92,6 +94,17 @@ app.use('/api/contact', contactRoutes);
 // In production, serve the frontend build and provide SPA fallback
 if (process.env.NODE_ENV === 'production') {
   const frontendDist = path.join(__dirname, '../frontend/dist');
+  try {
+    if (!fs.existsSync(frontendDist) && process.env.AUTO_BUILD_FRONTEND === 'true') {
+      const frontendDir = path.join(__dirname, '../frontend');
+      console.log('Frontend dist not found. Building frontend...');
+      execSync('npm install', { cwd: frontendDir, stdio: 'inherit' });
+      execSync('npm run build', { cwd: frontendDir, stdio: 'inherit' });
+      console.log('Frontend build completed.');
+    }
+  } catch (buildErr) {
+    console.error('Frontend build failed:', buildErr.message);
+  }
   app.use(express.static(frontendDist));
   app.get('*', (req, res, next) => {
     if (req.path.startsWith('/api')) return next();
