@@ -36,8 +36,11 @@ const Departments = () => {
       try {
         setLoading(true);
         const response = await api.get('/departments');
-        if (response.data && Array.isArray(response.data)) {
-          setDepartments(response.data);
+        const items = Array.isArray(response.data)
+          ? response.data
+          : (response.data?.items || []);
+        if (Array.isArray(items)) {
+          setDepartments(items);
         } else {
           setError('Invalid data format received from server');
         }

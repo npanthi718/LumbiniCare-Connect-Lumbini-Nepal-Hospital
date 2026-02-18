@@ -175,17 +175,21 @@ app.use((err, req, res, next) => {
 // Connect to MongoDB
 const MONGODB_URI = process.env.MONGO_URI || process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/hms';
 
-// MongoDB connection options
+// MongoDB connection options (tunable via environment)
 const mongooseOptions = {
   useNewUrlParser: true,
   useUnifiedTopology: true,
-  serverSelectionTimeoutMS: 30000, // Timeout after 30 seconds
-  socketTimeoutMS: 45000, // Close sockets after 45 seconds
+  serverSelectionTimeoutMS: parseInt(process.env.MONGO_SERVER_SELECTION_TIMEOUT_MS || '10000', 10),
+  socketTimeoutMS: parseInt(process.env.MONGO_SOCKET_TIMEOUT_MS || '20000', 10),
+  connectTimeoutMS: parseInt(process.env.MONGO_CONNECT_TIMEOUT_MS || '20000', 10),
   retryWrites: true,
-  w: 'majority',
-  maxPoolSize: 10,
-  connectTimeoutMS: 30000,
-  autoIndex: true,
+  w: process.env.MONGO_WRITE_CONCERN || 'majority',
+  maxPoolSize: parseInt(process.env.MONGO_MAX_POOL_SIZE || '20', 10),
+  autoIndex: typeof process.env.MONGO_AUTO_INDEX === 'string'
+    ? process.env.MONGO_AUTO_INDEX === 'true'
+    : (process.env.NODE_ENV !== 'production'),
+  keepAlive: true,
+  keepAliveInitialDelay: 300000,
 };
 
 // Handle MongoDB connection events
