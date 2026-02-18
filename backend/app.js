@@ -1,6 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const path = require('path');
 const jwt = require('jsonwebtoken');
 const morgan = require('morgan');
 const helmet = require('helmet');
@@ -87,6 +88,16 @@ app.use('/api/prescriptions', prescriptionRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/departments', departmentRoutes);
 app.use('/api/contact', contactRoutes);
+
+// In production, serve the frontend build and provide SPA fallback
+if (process.env.NODE_ENV === 'production') {
+  const frontendDist = path.join(__dirname, '../frontend/dist');
+  app.use(express.static(frontendDist));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api')) return next();
+    res.sendFile(path.join(frontendDist, 'index.html'));
+  });
+}
 
 app.get('/api', (req, res) => {
   res.status(200).json({
